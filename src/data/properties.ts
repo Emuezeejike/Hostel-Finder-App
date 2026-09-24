@@ -1,0 +1,140 @@
+import { Property } from '../types';
+
+export const mockProperties: Property[] = [
+  {
+    id: 'prop-1',
+    title: 'Emerald Student Lodge',
+    description:
+      'Modern student accommodation close to campus with good security, dedicated water supply, and study-friendly rooms.',
+    propertyType: 'Self-contained',
+    price: 450000,
+    additionalCharges: [
+      { label: 'Service charge', amount: 50000 },
+      { label: 'Legal', amount: 20000 },
+      { label: 'Agreement', amount: 10000 },
+      { label: 'Security deposit', amount: 50000 },
+    ],
+    images: [
+      'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1000&q=80',
+      'https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=1000&q=80',
+      'https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&w=1000&q=80',
+    ],
+    location: {
+      address: 'Ajegunle, Lagos',
+      city: 'Lagos',
+      state: 'Lagos State',
+      latitude: 6.4969,
+      longitude: 3.3343,
+    },
+    amenities: ['Water', 'Electricity', 'Security', 'Wi-Fi', 'Kitchen', 'Furnished'],
+    availability: 'AVAILABLE',
+    verificationStatus: 'VERIFIED',
+    provider: {
+      id: 'prov-1',
+      name: 'Olivia Homes',
+      isVerified: true,
+      phone: '+2348012345678',
+    },
+    inspectionAvailable: true,
+    createdAt: '2026-09-10',
+  },
+  {
+    id: 'prop-2',
+    title: 'Akoka Serenity House',
+    description:
+      'Well-maintained apartment near the campus with shared lounge, strong electricity, and easy access to transport.',
+    propertyType: 'Room & Parlour',
+    price: 360000,
+    additionalCharges: [{ label: 'Service charge', amount: 35000 }],
+    images: [
+      'https://images.unsplash.com/photo-1554995207-c18c203602cb?auto=format&fit=crop&w=1000&q=80',
+      'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1000&q=80',
+    ],
+    location: {
+      address: 'Akoka, Lagos',
+      city: 'Lagos',
+      state: 'Lagos State',
+      latitude: 6.5187,
+      longitude: 3.3856,
+    },
+    amenities: ['Water', 'Electricity', 'Wi-Fi', 'Parking', 'Security'],
+    availability: 'AVAILABLE',
+    verificationStatus: 'PENDING',
+    provider: {
+      id: 'prov-2',
+      name: 'Akoka Living',
+      isVerified: false,
+      phone: '+2348034567890',
+    },
+    inspectionAvailable: true,
+    createdAt: '2026-09-12',
+  },
+  {
+    id: 'prop-3',
+    title: 'Bells Court Hostel',
+    description:
+      'Affordable hostel option for students who want a clean environment, steady power, and close access to school routes.',
+    propertyType: 'Hostel',
+    price: 280000,
+    additionalCharges: [
+      { label: 'Cleaning fee', amount: 15000 },
+      { label: 'Security deposit', amount: 25000 },
+    ],
+    images: [
+      'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1000&q=80',
+      'https://images.unsplash.com/photo-1460317442991-0ec209397118?auto=format&fit=crop&w=1000&q=80',
+    ],
+    location: {
+      address: 'Yaba, Lagos',
+      city: 'Lagos',
+      state: 'Lagos State',
+      latitude: 6.5102,
+      longitude: 3.3788,
+    },
+    amenities: ['Water', 'Electricity', 'Security', 'Wi-Fi', 'Kitchen'],
+    availability: 'BOOKED',
+    verificationStatus: 'VERIFIED',
+    provider: {
+      id: 'prov-3',
+      name: 'Campus Nest',
+      isVerified: true,
+      phone: '+2348098765432',
+    },
+    inspectionAvailable: false,
+    createdAt: '2026-09-08',
+  },
+  {
+    id: 'prop-4',
+    title: 'Queens Garden Apartments',
+    description:
+      'Comfortable apartment with secure access, open-plan living, and a convenient location for off-campus students.',
+    propertyType: 'Apartment',
+    price: 520000,
+    additionalCharges: [
+      { label: 'Agency fee', amount: 40000 },
+      { label: 'Legal', amount: 25000 },
+    ],
+    images: [
+      'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1000&q=80',
+      'https://images.unsplash.com/photo-1523217582562-09d0def993a6?auto=format&fit=crop&w=1000&q=80',
+    ],
+    location: {
+      address: 'Ojo, Lagos',
+      city: 'Lagos',
+      state: 'Lagos State',
+      latitude: 6.4551,
+      longitude: 3.1905,
+    },
+    amenities: ['Water', 'Electricity', 'Security', 'Parking', 'Kitchen', 'Furnished'],
+    availability: 'AVAILABLE',
+    verificationStatus: 'VERIFIED',
+    provider: {
+      id: 'prov-4',
+      name: 'Evergreen Estates',
+      isVerified: true,
+      phone: '+2348023456789',
+    },
+    inspectionAvailable: true,
+    createdAt: '2026-09-15',
+  },
+];

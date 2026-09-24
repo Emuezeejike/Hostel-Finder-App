@@ -1,0 +1,58 @@
+import { School } from '../types';
+
+export const schools: School[] = [
+  {
+    id: 'unilag',
+    name: 'University of Lagos',
+    campus: 'Akoka, Lagos',
+    city: 'Lagos',
+    state: 'Lagos State',
+    latitude: 6.5167,
+    longitude: 3.3898,
+  },
+  {
+    id: 'lasu',
+    name: 'Lagos State University',
+    campus: 'Ojo, Lagos',
+    city: 'Lagos',
+    state: 'Lagos State',
+    latitude: 6.4625,
+    longitude: 3.1875,
+  },
+  {
+    id: 'yabatech',
+    name: 'Yaba College of Technology',
+    campus: 'Yaba, Lagos',
+    city: 'Lagos',
+    state: 'Lagos State',
+    latitude: 6.5114,
+    longitude: 3.3803,
+  },
+  {
+    id: 'uniben',
+    name: 'University of Benin',
+    campus: 'Benin City',
+    city: 'Benin City',
+    state: 'Edo State',
+    latitude: 6.3983,
+    longitude: 5.6118,
+  },
+  {
+    id: 'unn',
+    name: 'University of Nigeria, Nsukka',
+    campus: 'Nsukka',
+    city: 'Nsukka',
+    state: 'Enugu State',
+    latitude: 6.8519,
+    longitude: 7.3925,
+  },
+  {
+    id: 'ui',
+    name: 'University of Ibadan',
+    campus: 'Ibadan',
+    city: 'Ibadan',
+    state: 'Oyo State',
+    latitude: 7.4402,
+    longitude: 3.8999,
+  },
+];
