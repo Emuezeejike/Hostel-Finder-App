@@ -15,7 +15,7 @@ export default function RootLayout() {
         <Stack.Screen name="provider" />
         <Stack.Screen name="admin" />
         <Stack.Screen name="schools" />
-        <Stack.Screen name="property" />
+        <Stack.Screen name="property/[id]" />
       </Stack>
     </SafeAreaProvider>
   );

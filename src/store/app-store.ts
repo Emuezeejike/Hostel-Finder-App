@@ -23,12 +23,40 @@ const webStorage = {
   },
 };
 
+const memoryStorage = new Map<string, string>();
+
+const nativeStorage = {
+  getItem: async (name: string) => {
+    try {
+      return await AsyncStorage.getItem(name);
+    } catch {
+      return memoryStorage.get(name) ?? null;
+    }
+  },
+  setItem: async (name: string, value: string) => {
+    memoryStorage.set(name, value);
+
+    try {
+      await AsyncStorage.setItem(name, value);
+    } catch {
+    }
+  },
+  removeItem: async (name: string) => {
+    memoryStorage.delete(name);
+
+    try {
+      await AsyncStorage.removeItem(name);
+    } catch {
+    }
+  },
+};
+
 const safeStorage = () => {
   if (typeof window !== 'undefined' && 'localStorage' in window) {
     return webStorage;
   }
 
-  return AsyncStorage;
+  return nativeStorage;
 };
 
 export type ThemeMode = 'light' | 'dark';
