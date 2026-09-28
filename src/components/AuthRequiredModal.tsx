@@ -1,6 +1,7 @@
 import React from 'react';
 import { Modal, View, Text, Pressable, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
+import { colors } from '../theme/colors';
 
 interface AuthRequiredModalProps {
   visible: boolean;
@@ -53,9 +54,9 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modal: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    backgroundColor: colors.background,
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
     paddingHorizontal: 22,
     paddingTop: 22,
     paddingBottom: 28,
@@ -63,17 +64,17 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: '800',
-    color: '#0F172A',
+    color: colors.text,
     marginBottom: 10,
   },
   subtitle: {
-    color: '#475569',
+    color: colors.muted,
     fontSize: 14,
     lineHeight: 20,
     marginBottom: 22,
   },
   primaryButton: {
-    backgroundColor: '#0F172A',
+    backgroundColor: colors.primary,
     borderRadius: 14,
     paddingVertical: 14,
     alignItems: 'center',
@@ -85,19 +86,19 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   secondaryButton: {
-    backgroundColor: '#E2E8F0',
+    backgroundColor: colors.soft,
     borderRadius: 14,
     paddingVertical: 14,
     alignItems: 'center',
     marginBottom: 18,
   },
   secondaryText: {
-    color: '#0F172A',
+    color: colors.text,
     fontSize: 16,
     fontWeight: '700',
   },
   cancelText: {
-    color: '#475569',
+    color: colors.muted,
     fontWeight: '700',
     fontSize: 15,
     textAlign: 'center',

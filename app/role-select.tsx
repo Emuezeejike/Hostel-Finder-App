@@ -1,40 +1,38 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { router } from 'expo-router';
-import { useAppStore } from '../src/store/app-store';
+import { colors } from '../src/theme/colors';
 
 const roleCards = [
   {
     role: 'student',
     title: 'Student',
     description: 'Browse listings, request inspections, and track your bookings.',
-    accent: '#0F172A',
+    accent: colors.primary,
   },
   {
     role: 'provider',
     title: 'Provider',
     description: 'List properties, review inspection requests, and manage approvals.',
-    accent: '#2563EB',
+    accent: colors.primary,
   },
   {
     role: 'admin',
     title: 'Admin',
     description: 'Review provider applications, monitor reports, and manage users.',
-    accent: '#0EA5E9',
+    accent: colors.primary,
   },
 ] as const;
 
 export default function RoleSelectionScreen() {
-  const themeMode = useAppStore((state) => state.themeMode);
-  const isDark = themeMode === 'dark';
   const palette = {
-    background: isDark ? '#120c1d' : '#f5f3ff',
-    surface: isDark ? '#1d1530' : '#ffffff',
-    text: isDark ? '#f4ecff' : '#1f1636',
-    muted: isDark ? '#d7c8f8' : '#5b4c7e',
-    border: isDark ? '#3f2d64' : '#e9d8ff',
-    primary: '#7c3aed',
-    soft: isDark ? '#2d1b46' : '#ede9fe',
+    background: colors.background,
+    surface: colors.surface,
+    text: colors.text,
+    muted: colors.muted,
+    border: colors.border,
+    primary: colors.primary,
+    soft: colors.soft,
   };
 
   const handleRoleSelect = (role: 'student' | 'provider' | 'admin') => {
@@ -72,7 +70,7 @@ const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     padding: 24,
-    paddingTop: 56,
+    paddingTop: 24,
   },
   eyebrow: {
     fontSize: 12,

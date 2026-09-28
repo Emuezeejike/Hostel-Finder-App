@@ -6,17 +6,20 @@ import { mockProperties } from '../../src/data/properties';
 import { useAppStore } from '../../src/store/app-store';
 import { schools } from '../../src/data/schools';
 import { PropertyCard } from '../../src/components/PropertyCard';
+import { colors } from '../../src/theme/colors';
 
 export default function ExploreScreen() {
   const [query, setQuery] = useState('');
+  const [activeFilter, setActiveFilter] = useState('All');
+  const [selectedType, setSelectedType] = useState('');
   const selectedSchool = useAppStore((state) => state.selectedSchool) ?? schools[0];
+  const filters = ['All', 'Verified', 'Location', 'Property type'];
+  const propertyTypes = ['Hostel', 'Self-contained', 'Room & Parlour', 'Shared Apartment'];
 
   const filteredProperties = useMemo(() => {
     const search = query.trim().toLowerCase();
 
     return mockProperties.filter((property) => {
-      if (!search) return true;
-
       const haystack = [
         property.title,
         property.location.address,
@@ -26,29 +29,79 @@ export default function ExploreScreen() {
         .join(' ')
         .toLowerCase();
 
-      return haystack.includes(search);
+      const matchesSearch = !search || haystack.includes(search);
+      const matchesFilter =
+        activeFilter === 'All' ||
+        (activeFilter === 'Verified' && property.verificationStatus === 'VERIFIED') ||
+        (activeFilter === 'Location' && property.location.city === selectedSchool.city) ||
+        (activeFilter === 'Property type' && (!selectedType || property.propertyType === selectedType));
+
+      return matchesSearch && matchesFilter;
     });
-  }, [query]);
+  }, [activeFilter, query, selectedSchool.city, selectedType]);
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Explore</Text>
-        <Pressable onPress={() => router.push('/schools')} style={styles.schoolButton}>
-          <Ionicons name="school-outline" size={18} color="#0F172A" />
-          <Text style={styles.schoolText}>{selectedSchool.name}</Text>
-        </Pressable>
+        <View style={styles.titleRow}>
+          <Pressable onPress={() => router.back()} accessibilityLabel="Go back" style={styles.backButton}>
+            <Ionicons name="arrow-back" size={22} color={colors.text} />
+          </Pressable>
+          <Text style={styles.title}>Hostels</Text>
+        </View>
+        <View style={styles.intro}>
+          <Text style={styles.introTitle}>FIND YOUR DREAM SPACE OFF CAMPUS</Text>
+          <Text style={styles.introDescription}>Browse various spaces with costs, distance and availability in view</Text>
+        </View>
       </View>
 
       <View style={styles.searchBox}>
-        <Ionicons name="search-outline" size={18} color="#64748B" />
+        <Ionicons name="search-outline" size={22} color={colors.muted} />
         <TextInput
           value={query}
           onChangeText={setQuery}
-          placeholder="Search hostel, area or property"
-          placeholderTextColor="#64748B"
+          placeholder="Search by location or hostel name"
+          placeholderTextColor={colors.muted}
           style={styles.searchInput}
         />
+      </View>
+
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
+        {filters.map((filter) => (
+          <Pressable
+            key={filter}
+            accessibilityRole="button"
+            accessibilityState={{ selected: activeFilter === filter }}
+            onPress={() => {
+              if (filter === 'Location') {
+                router.push('/schools');
+              }
+              setActiveFilter(filter);
+            }}
+            style={[styles.filter, activeFilter === filter && styles.activeFilter]}
+          >
+            <Text style={[styles.filterText, activeFilter === filter && styles.activeFilterText]}>{filter}</Text>
+            {filter === 'All' && <Ionicons name="options-outline" size={17} color={activeFilter === filter ? '#fff' : colors.muted} />}
+          </Pressable>
+        ))}
+      </ScrollView>
+
+      {activeFilter === 'Property type' && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
+          {propertyTypes.map((type) => (
+            <Pressable key={type} onPress={() => setSelectedType(selectedType === type ? '' : type)} style={[styles.typeFilter, selectedType === type && styles.activeTypeFilter]}>
+              <Text style={[styles.typeFilterText, selectedType === type && styles.activeTypeFilterText]}>{type}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+      )}
+
+      <View style={styles.resultsRow}>
+        <Text style={styles.resultsCount}>{filteredProperties.length} results found</Text>
+        <Pressable onPress={() => router.push('/schools')} style={styles.locationButton}>
+          <Ionicons name="location-outline" size={15} color={colors.primary} />
+          <Text style={styles.locationText}>{selectedSchool.name}</Text>
+        </Pressable>
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -63,9 +116,9 @@ export default function ExploreScreen() {
           ))
         ) : (
           <View style={styles.emptyState}>
-            <Ionicons name="search-outline" size={40} color="#94A3B8" />
+            <Ionicons name="search-outline" size={40} color={colors.primary} />
             <Text style={styles.emptyTitle}>No accommodation found</Text>
-            <Text style={styles.emptyText}>Try a different keyword or adjust your school.</Text>
+            <Text style={styles.emptyText}>Try another search or choose a different filter.</Text>
           </View>
         )}
       </ScrollView>
@@ -76,70 +129,158 @@ export default function ExploreScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.background,
   },
   header: {
-    paddingHorizontal: 20,
-    paddingTop: 24,
-    paddingBottom: 12,
+    paddingHorizontal: 22,
+    paddingTop: 12,
+    paddingBottom: 14,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#0F172A',
-    marginBottom: 12,
-  },
-  schoolButton: {
+  titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    gap: 18,
   },
-  schoolText: {
-    marginLeft: 8,
-    color: '#0F172A',
+  backButton: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  title: {
+    fontSize: 30,
     fontWeight: '700',
-    flexShrink: 1,
+    color: colors.text,
+  },
+  intro: {
+    marginTop: 12,
+  },
+  introTitle: {
+    color: colors.text,
+    fontSize: 21,
+    lineHeight: 27,
+    fontWeight: '800',
+  },
+  introDescription: {
+    color: colors.muted,
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 4,
   },
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    marginHorizontal: 20,
-    paddingVertical: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.03,
-    shadowOffset: { width: 0, height: 2 },
+    backgroundColor: colors.surface,
+    borderColor: colors.primary,
+    borderWidth: 1.5,
+    borderRadius: 18,
+    paddingHorizontal: 17,
+    marginHorizontal: 22,
+    height: 58,
   },
   searchInput: {
-    marginLeft: 10,
+    marginLeft: 12,
     flex: 1,
+    fontSize: 16,
+    color: colors.text,
+  },
+  filters: {
+    paddingHorizontal: 22,
+    gap: 10,
+    paddingTop: 20,
+    paddingBottom: 13,
+    marginBottom: 4,
+  },
+  filter: {
+    height: 46,
+    minWidth: 70,
+    paddingHorizontal: 15,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    borderRadius: 11,
+    backgroundColor: colors.background,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 28,
+  },
+  activeFilter: {
+    backgroundColor: colors.primary,
+  },
+  filterText: {
     fontSize: 15,
-    color: '#0F172A',
+    color: colors.muted,
+  },
+  activeFilterText: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  typeFilter: {
+    minHeight: 36,
+    paddingHorizontal: 11,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+    marginBottom: 28,
+  },
+  activeTypeFilter: {
+    backgroundColor: colors.soft,
+    borderColor: colors.primary,
+  },
+  typeFilterText: {
+    color: colors.text,
+    fontSize: 12,
+  },
+  activeTypeFilterText: {
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  resultsRow: {
+    paddingHorizontal: 24,
+    paddingBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  resultsCount: {
+    color: colors.muted,
+    fontSize: 13,
+  },
+  locationButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    flexShrink: 1,
+  },
+  locationText: {
+    color: colors.text,
+    fontSize: 13,
+    flexShrink: 1,
   },
   content: {
-    padding: 20,
-    paddingBottom: 90,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 104,
   },
   emptyState: {
-    backgroundColor: '#fff',
-    borderRadius: 18,
-    padding: 26,
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    padding: 28,
     alignItems: 'center',
   },
   emptyTitle: {
-    color: '#111827',
+    color: colors.text,
     fontWeight: '700',
     fontSize: 18,
     marginTop: 10,
     marginBottom: 4,
   },
   emptyText: {
-    color: '#64748B',
+    color: colors.muted,
     fontSize: 13,
     textAlign: 'center',
   },

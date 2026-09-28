@@ -59,8 +59,6 @@ const safeStorage = () => {
   return nativeStorage;
 };
 
-export type ThemeMode = 'light' | 'dark';
-
 export interface AuthUser {
   id: string;
   name: string;
@@ -82,9 +80,6 @@ interface AppState {
   setSearchQuery: (query: string) => void;
   guestMode: boolean;
   setGuestMode: (value: boolean) => void;
-  themeMode: ThemeMode;
-  setThemeMode: (mode: ThemeMode) => void;
-  toggleThemeMode: () => void;
   authUser: AuthUser | null;
   login: (user: AuthUser) => void;
   logout: () => void;
@@ -111,12 +106,6 @@ const demoProviderProperties: Property[] = [
     description: 'Modern student accommodation close to campus with good security, dedicated water supply, and study-friendly rooms.',
     propertyType: 'Self-contained',
     price: 450000,
-    additionalCharges: [
-      { label: 'Service charge', amount: 50000 },
-      { label: 'Legal', amount: 20000 },
-      { label: 'Agreement', amount: 10000 },
-      { label: 'Security deposit', amount: 50000 },
-    ],
     images: [
       'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1000&q=80',
       'https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=1000&q=80',
@@ -141,7 +130,6 @@ const demoProviderProperties: Property[] = [
     description: 'Well-maintained apartment near the campus with shared lounge and easy access to transport.',
     propertyType: 'Room & Parlour',
     price: 360000,
-    additionalCharges: [{ label: 'Service charge', amount: 35000 }],
     images: ['https://images.unsplash.com/photo-1554995207-c18c203602cb?auto=format&fit=crop&w=1000&q=80'],
     location: {
       address: 'Akoka, Lagos',
@@ -165,7 +153,6 @@ export const useAppStore = create<AppState>()(
       selectedSchool: null,
       searchQuery: '',
       guestMode: true,
-      themeMode: 'light',
       authUser: null,
       studentVerificationStatus: 'PENDING',
       inspectionRequests: [
@@ -214,8 +201,6 @@ export const useAppStore = create<AppState>()(
       setSelectedSchool: (school) => set({ selectedSchool: school }),
       setSearchQuery: (query) => set({ searchQuery: query }),
       setGuestMode: (value) => set({ guestMode: value }),
-      setThemeMode: (mode) => set({ themeMode: mode }),
-      toggleThemeMode: () => set((state) => ({ themeMode: state.themeMode === 'light' ? 'dark' : 'light' })),
       login: (user) => set({ authUser: user, guestMode: false }),
       logout: () => set({ authUser: null, guestMode: true, searchQuery: '', selectedSchool: null }),
       setStudentVerificationStatus: (status) => set({ studentVerificationStatus: status }),

@@ -8,12 +8,6 @@ export const mockProperties: Property[] = [
       'Modern student accommodation close to campus with good security, dedicated water supply, and study-friendly rooms.',
     propertyType: 'Self-contained',
     price: 450000,
-    additionalCharges: [
-      { label: 'Service charge', amount: 50000 },
-      { label: 'Legal', amount: 20000 },
-      { label: 'Agreement', amount: 10000 },
-      { label: 'Security deposit', amount: 50000 },
-    ],
     images: [
       'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1000&q=80',
       'https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=1000&q=80',
@@ -45,7 +39,6 @@ export const mockProperties: Property[] = [
       'Well-maintained apartment near the campus with shared lounge, strong electricity, and easy access to transport.',
     propertyType: 'Room & Parlour',
     price: 360000,
-    additionalCharges: [{ label: 'Service charge', amount: 35000 }],
     images: [
       'https://images.unsplash.com/photo-1554995207-c18c203602cb?auto=format&fit=crop&w=1000&q=80',
       'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1000&q=80',
@@ -76,10 +69,6 @@ export const mockProperties: Property[] = [
       'Affordable hostel option for students who want a clean environment, steady power, and close access to school routes.',
     propertyType: 'Hostel',
     price: 280000,
-    additionalCharges: [
-      { label: 'Cleaning fee', amount: 15000 },
-      { label: 'Security deposit', amount: 25000 },
-    ],
     images: [
       'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1000&q=80',
       'https://images.unsplash.com/photo-1460317442991-0ec209397118?auto=format&fit=crop&w=1000&q=80',
@@ -110,10 +99,6 @@ export const mockProperties: Property[] = [
       'Comfortable apartment with secure access, open-plan living, and a convenient location for off-campus students.',
     propertyType: 'Apartment',
     price: 520000,
-    additionalCharges: [
-      { label: 'Agency fee', amount: 40000 },
-      { label: 'Legal', amount: 25000 },
-    ],
     images: [
       'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1000&q=80',
       'https://images.unsplash.com/photo-1523217582562-09d0def993a6?auto=format&fit=crop&w=1000&q=80',

@@ -3,21 +3,19 @@ import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAppStore } from '../../src/store/app-store';
+import { colors } from '../../src/theme/colors';
 
 export default function ProfileScreen() {
   const user = useAppStore((state) => state.authUser);
   const logout = useAppStore((state) => state.logout);
-  const themeMode = useAppStore((state) => state.themeMode);
-  const toggleThemeMode = useAppStore((state) => state.toggleThemeMode);
-  const isDark = themeMode === 'dark';
   const palette = {
-    background: isDark ? '#120c1d' : '#f5f3ff',
-    surface: isDark ? '#1d1530' : '#ffffff',
-    text: isDark ? '#f4ecff' : '#1f1636',
-    muted: isDark ? '#d7c8f8' : '#5b4c7e',
-    primary: '#7c3aed',
-    secondary: isDark ? '#2d1b46' : '#ede9fe',
-    border: isDark ? '#3b2d5d' : '#e9d8ff',
+    background: colors.background,
+    surface: colors.surface,
+    text: colors.text,
+    muted: colors.muted,
+    primary: colors.primary,
+    secondary: colors.soft,
+    border: colors.border,
   };
 
   if (!user) {
@@ -33,9 +31,6 @@ export default function ProfileScreen() {
           <Text style={styles.buttonText}>Sign In</Text>
         </Pressable>
 
-        <Pressable style={[styles.themeButton, { backgroundColor: palette.secondary, borderColor: palette.border }]} onPress={toggleThemeMode}>
-          <Text style={[styles.themeButtonText, { color: palette.text }]}>{isDark ? 'Light mode' : 'Dark mode'}</Text>
-        </Pressable>
       </View>
     );
   }
@@ -109,9 +104,6 @@ export default function ProfileScreen() {
         <Text style={styles.buttonText}>Log Out</Text>
       </Pressable>
 
-      <Pressable style={[styles.themeButton, { backgroundColor: palette.secondary, borderColor: palette.border }]} onPress={toggleThemeMode}>
-        <Text style={[styles.themeButtonText, { color: palette.text }]}>{isDark ? 'Light mode' : 'Dark mode'}</Text>
-      </Pressable>
     </ScrollView>
   );
 }
@@ -174,20 +166,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 12,
   },
-  themeButton: {
-    borderRadius: 14,
-    paddingVertical: 12,
-    alignItems: 'center',
-    marginTop: 12,
-    borderWidth: 1,
-  },
   buttonText: {
     color: '#fff',
     fontWeight: '700',
     fontSize: 16,
-  },
-  themeButtonText: {
-    fontWeight: '700',
-    fontSize: 14,
   },
 });

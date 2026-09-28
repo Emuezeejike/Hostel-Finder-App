@@ -2,11 +2,12 @@ import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { colors } from '../../src/theme/colors';
 
 export default function InspectionSuccessScreen() {
   return (
     <View style={styles.container}>
-      <Ionicons name="checkmark-circle" size={64} color="#10B981" />
+      <Ionicons name="checkmark-circle" size={64} color={colors.primary} />
       <Text style={styles.title}>Inspection request sent</Text>
       <Text style={styles.subtitle}>Status: Pending provider response</Text>
 
@@ -20,7 +21,7 @@ export default function InspectionSuccessScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.background,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
@@ -29,18 +30,18 @@ const styles = StyleSheet.create({
     marginTop: 18,
     fontSize: 28,
     fontWeight: '800',
-    color: '#0F172A',
+    color: colors.text,
     textAlign: 'center',
   },
   subtitle: {
     marginTop: 10,
-    color: '#475569',
+    color: colors.muted,
     fontSize: 16,
     textAlign: 'center',
   },
   button: {
     marginTop: 26,
-    backgroundColor: '#0F172A',
+    backgroundColor: colors.primary,
     borderRadius: 14,
     paddingHorizontal: 20,
     paddingVertical: 14,

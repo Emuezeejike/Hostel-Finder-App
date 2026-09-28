@@ -7,20 +7,24 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          height: 68,
-          paddingTop: 8,
+          height: 72,
+          paddingTop: 7,
           paddingBottom: 10,
           borderTopLeftRadius: 20,
           borderTopRightRadius: 20,
-          backgroundColor: '#fff',
+          backgroundColor: '#F0E9FB',
           borderTopWidth: 0,
           shadowColor: '#000',
           shadowOpacity: 0.05,
           shadowRadius: 10,
           shadowOffset: { width: 0, height: -2 },
         },
-        tabBarActiveTintColor: '#0F172A',
-        tabBarInactiveTintColor: '#64748B',
+        tabBarActiveTintColor: '#7956C8',
+        tabBarInactiveTintColor: '#2B2340',
+        tabBarLabelStyle: {
+          fontSize: 10,
+          fontWeight: '600',
+        },
       }}
     >
       <Tabs.Screen
@@ -33,29 +37,28 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="explore"
         options={{
-          title: 'Explore',
+          title: 'Search',
           tabBarIcon: ({ color, size }) => <Ionicons name="search-outline" size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name="inspections"
         options={{
-          title: 'Inspections',
-          tabBarIcon: ({ color, size }) => <Ionicons name="calendar-outline" size={size} color={color} />,
+          title: 'Book',
+          tabBarIcon: ({ color, size }) => <Ionicons name="bookmark-outline" size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name="saved"
         options={{
-          title: 'Saved',
-          tabBarIcon: ({ color, size }) => <Ionicons name="bookmark-outline" size={size} color={color} />,
+          href: null,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Profile',
-          tabBarIcon: ({ color, size }) => <Ionicons name="person-circle-outline" size={size} color={color} />,
+          title: 'Menu',
+          tabBarIcon: ({ color, size }) => <Ionicons name="menu" size={size} color={color} />,
         }}
       />
     </Tabs>

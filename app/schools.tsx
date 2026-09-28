@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { schools } from '../src/data/schools';
 import { useAppStore } from '../src/store/app-store';
+import { colors } from '../src/theme/colors';
 
 export default function SchoolSelectionScreen() {
   const [query, setQuery] = useState('');
@@ -26,18 +27,18 @@ export default function SchoolSelectionScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={22} color="#0F172A" />
+          <Ionicons name="arrow-back" size={22} color={colors.text} />
         </Pressable>
         <Text style={styles.title}>Select your school</Text>
       </View>
 
       <View style={styles.searchBox}>
-        <Ionicons name="search-outline" size={18} color="#64748B" />
+        <Ionicons name="search-outline" size={18} color={colors.muted} />
         <TextInput
           value={query}
           onChangeText={setQuery}
           placeholder="Search for your school"
-          placeholderTextColor="#64748B"
+          placeholderTextColor={colors.muted}
           style={styles.searchInput}
         />
       </View>
@@ -69,32 +70,32 @@ export default function SchoolSelectionScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.background,
   },
   header: {
     paddingHorizontal: 20,
-    paddingTop: 52,
+    paddingTop: 16,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
   },
   backButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#fff',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
   title: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#0F172A',
+    color: colors.text,
   },
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     marginHorizontal: 20,
     paddingHorizontal: 14,
@@ -105,14 +106,14 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     flex: 1,
     fontSize: 15,
-    color: '#0F172A',
+    color: colors.text,
   },
   currentLabel: {
     marginTop: 18,
     marginLeft: 20,
     fontSize: 12,
     fontWeight: '700',
-    color: '#64748B',
+    color: colors.muted,
     textTransform: 'uppercase',
   },
   currentSchool: {
@@ -120,14 +121,14 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontSize: 18,
     fontWeight: '700',
-    color: '#0F172A',
+    color: colors.text,
   },
   list: {
     padding: 20,
     paddingBottom: 80,
   },
   schoolItem: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
@@ -135,11 +136,11 @@ const styles = StyleSheet.create({
   schoolName: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#0F172A',
+    color: colors.text,
   },
   schoolCampus: {
     marginTop: 4,
     fontSize: 13,
-    color: '#64748B',
+    color: colors.muted,
   },
 });

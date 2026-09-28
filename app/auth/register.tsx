@@ -1,20 +1,33 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, TextInput, Pressable, StyleSheet, ScrollView, Alert } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAppStore } from '../../src/store/app-store';
+import { BrandLogo } from '../../src/components/BrandLogo';
+import { colors } from '../../src/theme/colors';
 
 export default function RegisterScreen() {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [school, setSchool] = useState('University of Lagos');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const [confirmVisible, setConfirmVisible] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [formError, setFormError] = useState('');
   const login = useAppStore((state) => state.login);
 
   const handleSubmit = () => {
-    if (!fullName || !email || !phone || !password) {
+    if (!fullName || !email || !phone || !password || !confirmPassword || !termsAccepted) {
+      setFormError('Complete all fields and accept the terms to continue.');
       return;
     }
+    if (password !== confirmPassword) {
+      setFormError('Your passwords do not match.');
+      return;
+    }
+    setFormError('');
 
     login({
       id: 'student-register-1',
@@ -27,78 +40,215 @@ export default function RegisterScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Create your account</Text>
-      <Text style={styles.subtitle}>Get access to inspection requests, reviews, and saved properties.</Text>
+    <ScrollView style={styles.page} contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+      <BrandLogo compact style={styles.brand} />
+      <Text style={styles.title}>Create Your Account</Text>
+      <Text style={styles.subtitle}>Join &amp; Find Your Ideal Hostel</Text>
 
-      <TextInput style={styles.input} placeholder="Full name" value={fullName} onChangeText={setFullName} />
+      <Text style={styles.label}>Full Name</Text>
+      <TextInput style={styles.input} placeholder="Chinedu Okafor" placeholderTextColor={colors.muted} value={fullName} onChangeText={setFullName} />
+
+      <Text style={styles.label}>Email Address</Text>
       <TextInput
         style={styles.input}
-        placeholder="Email"
+        placeholder="name@gmail.com"
+        placeholderTextColor={colors.muted}
         value={email}
         onChangeText={setEmail}
         autoCapitalize="none"
         keyboardType="email-address"
       />
-      <TextInput style={styles.input} placeholder="Phone number" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
-      <TextInput style={styles.input} placeholder="School" value={school} onChangeText={setSchool} />
-      <TextInput style={styles.input} placeholder="Password" value={password} onChangeText={setPassword} secureTextEntry />
 
+      <Text style={styles.label}>Phone Number</Text>
+      <TextInput style={styles.input} placeholder="+234 816 277 2324" placeholderTextColor={colors.muted} value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
+
+      <Text style={styles.label}>Password</Text>
+      <View style={styles.passwordField}>
+        <TextInput style={styles.passwordInput} placeholder="At least 8 characters" placeholderTextColor={colors.muted} value={password} onChangeText={setPassword} secureTextEntry={!passwordVisible} />
+        <Pressable accessibilityLabel={passwordVisible ? 'Hide password' : 'Show password'} onPress={() => setPasswordVisible(!passwordVisible)} hitSlop={10}>
+          <Ionicons name={passwordVisible ? 'eye-off-outline' : 'eye-outline'} size={21} color={colors.muted} />
+        </Pressable>
+      </View>
+
+      <Text style={styles.label}>Confirm Password</Text>
+      <View style={styles.passwordField}>
+        <TextInput style={styles.passwordInput} placeholder="Repeat your password" placeholderTextColor={colors.muted} value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry={!confirmVisible} />
+        <Pressable accessibilityLabel={confirmVisible ? 'Hide confirmation password' : 'Show confirmation password'} onPress={() => setConfirmVisible(!confirmVisible)} hitSlop={10}>
+          <Ionicons name={confirmVisible ? 'eye-off-outline' : 'eye-outline'} size={21} color={colors.muted} />
+        </Pressable>
+      </View>
+
+      <Pressable style={styles.termsRow} onPress={() => setTermsAccepted(!termsAccepted)} accessibilityRole="checkbox" accessibilityState={{ checked: termsAccepted }}>
+        <View style={[styles.checkbox, termsAccepted && styles.checkboxChecked]}>
+          {termsAccepted && <Ionicons name="checkmark" size={16} color="#fff" />}
+        </View>
+        <Text style={styles.termsText}>I agree to the <Text style={styles.linkText}>Terms &amp; Conditions</Text> and <Text style={styles.linkText}>Privacy Policy</Text></Text>
+      </Pressable>
+
+      {formError ? <Text style={styles.errorText}>{formError}</Text> : null}
       <Pressable style={styles.primaryButton} onPress={handleSubmit}>
         <Text style={styles.primaryButtonText}>Create Account</Text>
       </Pressable>
 
-      <Pressable onPress={() => router.push('/auth/login')}>
-        <Text style={styles.secondaryText}>Already have an account? Log in</Text>
-      </Pressable>
+      <View style={styles.dividerRow}>
+        <View style={styles.divider} />
+        <Text style={styles.dividerText}>OR SIGN UP WITH</Text>
+        <View style={styles.divider} />
+      </View>
+      <View style={styles.socialRow}>
+        <Pressable accessibilityLabel="Continue with Apple" style={styles.socialButton} onPress={() => Alert.alert('Apple sign-in', 'Social sign-in is not connected in this demo.')}>
+          <Ionicons name="logo-apple" size={29} color="#08070B" />
+        </Pressable>
+        <Pressable accessibilityLabel="Continue with Google" style={styles.socialButton} onPress={() => Alert.alert('Google sign-in', 'Social sign-in is not connected in this demo.')}>
+          <Ionicons name="logo-google" size={27} color="#4285F4" />
+        </Pressable>
+      </View>
+
+      <Text style={styles.footerText}>Already have an account? <Text style={styles.linkText} onPress={() => router.push('/auth/login')}>Log in</Text></Text>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  page: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   container: {
     flexGrow: 1,
-    backgroundColor: '#F8FAFC',
-    padding: 24,
-    justifyContent: 'center',
+    backgroundColor: colors.background,
+    paddingHorizontal: 24,
+    paddingTop: 30,
+    paddingBottom: 24,
+  },
+  brand: {
+    alignSelf: 'center',
+    marginBottom: 28,
   },
   title: {
-    fontSize: 30,
-    fontWeight: '800',
-    color: '#0F172A',
-    marginBottom: 8,
+    fontSize: 29,
+    fontWeight: '700',
+    color: colors.text,
   },
   subtitle: {
-    color: '#475569',
+    color: colors.text,
     fontSize: 15,
-    marginBottom: 22,
+    marginTop: 3,
+    marginBottom: 20,
+  },
+  label: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 7,
   },
   input: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    marginBottom: 14,
+    paddingHorizontal: 15,
+    height: 52,
+    marginBottom: 7,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.border,
+    fontSize: 15,
+    color: colors.text,
+  },
+  passwordField: {
+    height: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 15,
+    marginBottom: 7,
+  },
+  passwordInput: {
+    flex: 1,
+    color: colors.text,
     fontSize: 15,
   },
-  primaryButton: {
-    backgroundColor: '#0F172A',
-    borderRadius: 14,
-    paddingVertical: 14,
+  termsRow: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 9,
     marginTop: 8,
+    marginBottom: 8,
+  },
+  checkbox: {
+    width: 23,
+    height: 23,
+    borderRadius: 4,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxChecked: {
+    backgroundColor: colors.primary,
+  },
+  termsText: {
+    flex: 1,
+    color: colors.text,
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  linkText: {
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  errorText: {
+    color: '#A33B45',
+    fontSize: 12,
+    marginBottom: 5,
+  },
+  primaryButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 15,
+    height: 54,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 7,
   },
   primaryButtonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '600',
   },
-  secondaryText: {
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
     marginTop: 18,
+  },
+  divider: {
+    height: 1,
+    flex: 1,
+    backgroundColor: colors.border,
+  },
+  dividerText: {
+    color: colors.text,
+    fontSize: 11,
+  },
+  socialRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 28,
+    marginTop: 14,
+  },
+  socialButton: {
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  footerText: {
+    color: colors.text,
     textAlign: 'center',
-    color: '#2563EB',
-    fontWeight: '700',
+    marginTop: 12,
+    fontSize: 13,
   },
 });

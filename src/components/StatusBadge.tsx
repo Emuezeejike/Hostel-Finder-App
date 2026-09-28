@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { colors } from '../theme/colors';
 
 interface StatusBadgeProps {
   label: string;
@@ -11,7 +12,7 @@ export function StatusBadge({ label, tone = 'neutral' }: StatusBadgeProps) {
     success: { backgroundColor: '#DCFCE7', color: '#166534' },
     warning: { backgroundColor: '#FEF3C7', color: '#92400E' },
     danger: { backgroundColor: '#FEE2E2', color: '#991B1B' },
-    neutral: { backgroundColor: '#E2E8F0', color: '#0F172A' },
+    neutral: { backgroundColor: colors.soft, color: colors.text },
   };
 
   const styles = StyleSheet.create({

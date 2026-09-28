@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useAppStore } from '../../src/store/app-store';
+import { colors } from '../../src/theme/colors';
 
 export default function InspectionStatusScreen() {
   const requests = useAppStore((state) => state.inspectionRequests);
@@ -25,30 +26,30 @@ export default function InspectionStatusScreen() {
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.background,
     padding: 24,
-    paddingTop: 48,
+    paddingTop: 24,
   },
   title: {
     fontSize: 28,
     fontWeight: '800',
-    color: '#0F172A',
+    color: colors.text,
     marginBottom: 18,
   },
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 18,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
     padding: 18,
     marginBottom: 16,
   },
   property: {
-    color: '#0F172A',
+    color: colors.text,
     fontWeight: '800',
     fontSize: 18,
     marginBottom: 10,
   },
   info: {
-    color: '#475569',
+    color: colors.muted,
     fontSize: 14,
     marginBottom: 6,
   },

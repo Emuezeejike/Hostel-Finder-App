@@ -17,27 +17,15 @@ import { schools } from '../../src/data/schools';
 import { PropertyCard } from '../../src/components/PropertyCard';
 import { useAppStore } from '../../src/store/app-store';
 import { calculateDistance, formatDistance } from '../../src/utils/distance';
+import { BrandLogo } from '../../src/components/BrandLogo';
+import { colors } from '../../src/theme/colors';
 
 const { width } = Dimensions.get('window');
 
 export default function HomeScreen() {
   const [query, setQuery] = useState('');
   const selectedSchool = useAppStore((state) => state.selectedSchool) ?? schools[0];
-  const themeMode = useAppStore((state) => state.themeMode);
-  const setSelectedSchool = useAppStore((state) => state.setSelectedSchool);
-  const isDark = themeMode === 'dark';
-  const palette = {
-    background: isDark ? '#120c1d' : '#f5f3ff',
-    surface: isDark ? '#1d1530' : '#ffffff',
-    card: isDark ? '#241b39' : '#f8f5ff',
-    text: isDark ? '#f4ecff' : '#1f1636',
-    muted: isDark ? '#d2c3f5' : '#5b4c7e',
-    border: isDark ? '#3d2d5f' : '#e9d8ff',
-    soft: isDark ? '#32214f' : '#ede9fe',
-    primary: '#7c3aed',
-    primarySoft: '#c4b5fd',
-    accent: '#a78bfa',
-  };
+  const palette = colors;
 
   const filteredProperties = useMemo(() => {
     const lowerQuery = query.toLowerCase();
@@ -64,17 +52,14 @@ export default function HomeScreen() {
     <View style={[styles.container, { backgroundColor: palette.background }]}>
       <ScrollView contentContainerStyle={[styles.content, { backgroundColor: palette.background }]} showsVerticalScrollIndicator={false}>
         <View style={styles.headerRow}>
-          <View>
-            <Text style={[styles.eyebrow, { color: palette.text }]}>OFF-CAMPUS</Text>
-            <Text style={[styles.logo, { color: palette.text }]}>HOSTEL FINDER</Text>
-          </View>
+          <BrandLogo compact />
           <Pressable style={[styles.profileButton, { backgroundColor: palette.soft }]} onPress={() => router.push('/(tabs)/profile')}>
             <Ionicons name="person-outline" size={22} color={palette.primary} />
           </Pressable>
         </View>
 
         <Pressable
-          style={[styles.schoolSelector, { backgroundColor: palette.surface, borderColor: palette.border, shadowColor: isDark ? '#000' : '#7c3aed' }]}
+          style={[styles.schoolSelector, { backgroundColor: palette.surface, borderColor: palette.border, shadowColor: palette.primary }]}
           onPress={() => router.push('/schools')}
         >
           <Ionicons name="school-outline" size={18} color={palette.primary} />
@@ -94,7 +79,7 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.chipRow}>
-          {['Under ₦300k', 'Verified', 'Near school', 'Available now'].map((tag) => (
+        {['Under ₦300k', 'Verified', 'Near school', 'Available now'].map((tag) => (
             <View key={tag} style={[styles.chip, { backgroundColor: palette.soft }]}>
               <Text style={[styles.chipText, { color: palette.text }]}>{tag}</Text>
             </View>
@@ -191,9 +176,9 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   profileButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -282,7 +267,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(15, 23, 42, 0.28)',
+                    backgroundColor: 'rgba(43, 35, 64, 0.32)',
   },
   featuredContent: {
     position: 'absolute',
@@ -292,7 +277,7 @@ const styles = StyleSheet.create({
   },
   featuredTag: {
     alignSelf: 'flex-start',
-    backgroundColor: '#a78bfa',
+    backgroundColor: colors.primary,
     borderRadius: 999,
     paddingHorizontal: 8,
     paddingVertical: 4,

@@ -10,11 +10,6 @@ export type PropertyType =
 export type InspectionStatus = 'Pending' | 'Confirmed' | 'Declined' | 'Completed' | 'Cancelled';
 export type ProceedStatus = 'Inspection completed' | 'Property accepted' | 'Proceeding' | 'Provider confirmation' | 'Completed';
 
-export interface AdditionalCharge {
-  label: string;
-  amount: number;
-}
-
 export interface School {
   id: string;
   name: string;
@@ -38,7 +33,6 @@ export interface Property {
   description: string;
   propertyType: PropertyType;
   price: number;
-  additionalCharges: AdditionalCharge[];
   images: string[];
   location: {
     address: string;

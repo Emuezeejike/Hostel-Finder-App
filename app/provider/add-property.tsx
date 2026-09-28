@@ -20,7 +20,7 @@ export default function AddPropertyScreen() {
       <TextInput style={styles.input} placeholder="Property title" value={title} onChangeText={setTitle} />
       <TextInput style={styles.input} placeholder="Property type" value={propertyType} onChangeText={setPropertyType} />
       <TextInput style={styles.input} placeholder="Location" value={location} onChangeText={setLocation} />
-      <TextInput style={styles.input} placeholder="Price" value={price} onChangeText={setPrice} keyboardType="numeric" />
+      <TextInput style={styles.input} placeholder="Annual rent (₦/year)" value={price} onChangeText={setPrice} keyboardType="numeric" />
       <TextInput
         multiline
         numberOfLines={5}
@@ -42,7 +42,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     backgroundColor: '#F8FAFC',
     padding: 24,
-    paddingTop: 48,
+    paddingTop: 24,
   },
   title: {
     fontSize: 28,

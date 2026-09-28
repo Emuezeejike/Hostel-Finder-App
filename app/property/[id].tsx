@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, Pressable, Linking } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, Pressable } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { mockProperties } from '../../src/data/properties';
@@ -7,7 +7,9 @@ import { schools } from '../../src/data/schools';
 import { calculateDistance, formatDistance } from '../../src/utils/distance';
 import { formatCurrency } from '../../src/utils/currency';
 import { AuthRequiredModal } from '../../src/components/AuthRequiredModal';
+import { MainBottomBar } from '../../src/components/MainBottomBar';
 import { useAppStore } from '../../src/store/app-store';
+import { colors } from '../../src/theme/colors';
 
 export default function PropertyDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -27,12 +29,11 @@ export default function PropertyDetailScreen() {
     [property, school],
   );
 
-  const totalCharges = property.additionalCharges.reduce((sum, charge) => sum + charge.amount, 0);
-
   return (
+    <View style={styles.screen}>
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Pressable onPress={() => router.back()} style={styles.backButton}>
-        <Ionicons name="arrow-back" size={22} color="#0F172A" />
+      <Pressable onPress={() => router.back()} style={styles.backButton} accessibilityLabel="Go back">
+        <Ionicons name="arrow-back" size={22} color={colors.text} />
       </Pressable>
 
       <Image source={{ uri: property.images[0] }} style={styles.heroImage} resizeMode="cover" />
@@ -41,27 +42,23 @@ export default function PropertyDetailScreen() {
         <View style={styles.headerRow}>
           <Text style={styles.title}>{property.title}</Text>
           <View style={styles.verificationBadge}>
-            <Ionicons name="checkmark-circle" size={16} color="#fff" />
+            <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
             <Text style={styles.verificationText}>Verified Property</Text>
           </View>
         </View>
 
         <Text style={styles.location}>{property.location.address}</Text>
         <Text style={styles.distance}>
-          <Ionicons name="location-outline" size={15} color="#0F172A" /> {formatDistance(distanceKm)} from {school.name}
+          <Ionicons name="location-outline" size={15} color={colors.muted} /> {formatDistance(distanceKm)} from {school.name}
         </Text>
 
-        <Text style={styles.price}>{formatCurrency(property.price)} / year</Text>
-        <Text style={styles.subtitle}>Additional charges are separate from rent.</Text>
-
-        {property.additionalCharges.map((charge) => (
-          <View key={charge.label} style={styles.chargeRow}>
-            <Text style={styles.chargeLabel}>{charge.label}</Text>
-            <Text style={styles.chargeValue}>{formatCurrency(charge.amount)}</Text>
-          </View>
-        ))}
-
-        <Text style={styles.total}>Estimated total: {formatCurrency(property.price + totalCharges)}</Text>
+        <View style={styles.ratingRow}>
+          <Ionicons name="star" size={18} color={colors.primary} />
+          <Text style={styles.rating}>4.8</Text>
+          <Text style={styles.reviewCount}>• 120 Reviews</Text>
+        </View>
+        <Text style={styles.propertyType}>{property.propertyType.toUpperCase()}</Text>
+        <Text style={styles.price}>{formatCurrency(property.price)}<Text style={styles.priceSuffix}>/year</Text></Text>
       </View>
 
       <View style={styles.section}>
@@ -98,44 +95,41 @@ export default function PropertyDetailScreen() {
               setAuthModalVisible(true);
               return;
             }
-            router.push('/inspection/request');
+            router.push({ pathname: '/inspection/request', params: { id: property.id } });
           }}
         >
           <Text style={styles.primaryButtonText}>Request Inspection</Text>
-        </Pressable>
-        <Pressable
-          style={styles.secondaryButton}
-          onPress={() => {
-            const url = `https://www.google.com/maps/search/?api=1&query=${property.location.latitude},${property.location.longitude}`;
-            Linking.openURL(url);
-          }}
-        >
-          <Text style={styles.secondaryButtonText}>View on Google Maps</Text>
         </Pressable>
       </View>
 
       <AuthRequiredModal visible={authModalVisible} onClose={() => setAuthModalVisible(false)} />
     </ScrollView>
+    <MainBottomBar active="search" propertyId={property.id} />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.background,
   },
   content: {
     paddingBottom: 60,
   },
   backButton: {
     position: 'absolute',
-    top: 52,
+    top: 16,
     left: 20,
     zIndex: 2,
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#fff',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
@@ -148,12 +142,12 @@ const styles = StyleSheet.create({
     height: 260,
   },
   section: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     marginTop: 16,
     paddingHorizontal: 20,
     paddingVertical: 18,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: 14,
+    borderTopRightRadius: 14,
   },
   headerRow: {
     flexDirection: 'row',
@@ -164,70 +158,70 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 26,
     fontWeight: '800',
-    color: '#0F172A',
+    color: colors.text,
     flex: 1,
   },
   verificationBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#10B981',
-    borderRadius: 999,
+    backgroundColor: colors.soft,
+    borderRadius: 8,
     paddingHorizontal: 8,
     paddingVertical: 5,
   },
   verificationText: {
-    color: '#fff',
+    color: colors.text,
     fontSize: 10,
     fontWeight: '700',
     marginLeft: 4,
   },
   location: {
     marginTop: 8,
-    color: '#475569',
+    color: colors.muted,
     fontSize: 15,
     fontWeight: '600',
   },
   distance: {
     marginTop: 8,
-    color: '#0F172A',
+    color: colors.text,
     fontSize: 14,
     fontWeight: '700',
   },
   price: {
     marginTop: 14,
-    color: '#111827',
+    color: colors.primary,
     fontSize: 24,
     fontWeight: '800',
   },
-  subtitle: {
-    marginTop: 6,
-    color: '#64748B',
-    fontSize: 12,
+  priceSuffix: {
+    color: colors.muted,
+    fontSize: 14,
+    fontWeight: '500',
   },
-  chargeRow: {
+  ratingRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 6,
     marginTop: 14,
   },
-  chargeLabel: {
-    color: '#475569',
-    fontSize: 14,
-  },
-  chargeValue: {
-    color: '#0F172A',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  total: {
-    marginTop: 18,
-    color: '#0F172A',
+  rating: {
+    color: colors.text,
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '600',
+  },
+  reviewCount: {
+    color: colors.text,
+    fontSize: 14,
+  },
+  propertyType: {
+    color: colors.text,
+    fontSize: 13,
+    marginTop: 12,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#0F172A',
+    color: colors.text,
     marginBottom: 12,
   },
   description: {
@@ -241,54 +235,41 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   amenityChip: {
-    backgroundColor: '#E2E8F0',
-    borderRadius: 999,
+    backgroundColor: colors.primary,
+    borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 8,
   },
   amenityText: {
-    color: '#0F172A',
+    color: '#fff',
     fontSize: 12,
     fontWeight: '600',
   },
   providerRow: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 14,
+    backgroundColor: colors.background,
+    borderRadius: 10,
     padding: 14,
   },
   providerName: {
-    color: '#0F172A',
+    color: colors.text,
     fontSize: 18,
     fontWeight: '700',
   },
   providerVerified: {
     marginTop: 4,
-    color: '#059669',
+    color: colors.primary,
     fontSize: 13,
     fontWeight: '700',
   },
   primaryButton: {
-    backgroundColor: '#0F172A',
-    borderRadius: 14,
+    backgroundColor: colors.primary,
+    borderRadius: 12,
     alignItems: 'center',
     paddingVertical: 14,
     marginBottom: 12,
   },
   primaryButtonText: {
     color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  secondaryButton: {
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    alignItems: 'center',
-    paddingVertical: 14,
-  },
-  secondaryButtonText: {
-    color: '#0F172A',
     fontSize: 16,
     fontWeight: '700',
   },

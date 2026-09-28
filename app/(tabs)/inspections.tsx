@@ -1,17 +1,19 @@
 import React from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppStore } from '../../src/store/app-store';
+import { colors } from '../../src/theme/colors';
 
 export default function InspectionsScreen() {
   const user = useAppStore((state) => state.authUser);
+  const requests = useAppStore((state) => state.inspectionRequests);
 
   if (!user) {
     return (
       <View style={styles.container}>
         <View style={styles.card}>
-          <Ionicons name="calendar-outline" size={46} color="#0F172A" />
+          <Ionicons name="calendar-outline" size={46} color={colors.primary} />
           <Text style={styles.title}>Inspection requests</Text>
           <Text style={styles.subtitle}>Sign in to manage your inspection bookings and provider updates.</Text>
           <Pressable style={styles.button} onPress={() => router.push('/auth/login')}>
@@ -23,28 +25,54 @@ export default function InspectionsScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.card}>
-        <Ionicons name="checkmark-circle-outline" size={46} color="#10B981" />
-        <Text style={styles.title}>No inspections yet</Text>
-        <Text style={styles.subtitle}>You do not have any inspection requests yet.</Text>
-      </View>
-    </View>
+    <ScrollView style={styles.page} contentContainerStyle={styles.listContainer} showsVerticalScrollIndicator={false}>
+      <Text style={styles.heading}>My Inspections</Text>
+      <Text style={styles.intro}>Track your property visits and provider updates.</Text>
+      {requests.length ? requests.map((request) => (
+        <Pressable key={request.id} style={styles.card} onPress={() => router.push('/inspection/status')}>
+          <View style={styles.requestHeader}>
+            <View style={styles.calendarIcon}><Ionicons name="calendar-outline" size={20} color="#fff" /></View>
+            <Text style={styles.status}>{request.status}</Text>
+          </View>
+          <Text style={styles.title}>{request.propertyName}</Text>
+          <Text style={styles.subtitle}>{request.requestedDate} · {request.requestedTime}</Text>
+          {request.providerResponse ? <Text style={styles.response}>{request.providerResponse}</Text> : null}
+        </Pressable>
+      )) : (
+        <View style={styles.card}>
+          <Ionicons name="calendar-outline" size={46} color={colors.primary} />
+          <Text style={styles.title}>No inspections yet</Text>
+          <Text style={styles.subtitle}>Choose a verified hostel and book a time to visit.</Text>
+          <Pressable style={styles.button} onPress={() => router.push('/(tabs)/explore')}>
+            <Text style={styles.buttonText}>Find a hostel</Text>
+          </Pressable>
+        </View>
+      )}
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  page: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  listContainer: {
+    padding: 20,
+    paddingTop: 28,
+    paddingBottom: 100,
+  },
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.background,
     justifyContent: 'center',
     padding: 24,
   },
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 22,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
     padding: 26,
-    alignItems: 'center',
+    marginTop: 18,
     shadowColor: '#000',
     shadowOpacity: 0.04,
     shadowRadius: 10,
@@ -52,20 +80,57 @@ const styles = StyleSheet.create({
   },
   title: {
     marginTop: 12,
-    color: '#0F172A',
+    color: colors.text,
     fontSize: 22,
     fontWeight: '800',
   },
   subtitle: {
     marginTop: 8,
-    color: '#64748B',
+    color: colors.muted,
     fontSize: 14,
     textAlign: 'center',
     lineHeight: 22,
   },
+  heading: {
+    color: colors.text,
+    fontSize: 28,
+    fontWeight: '700',
+  },
+  intro: {
+    color: colors.muted,
+    fontSize: 14,
+    marginTop: 4,
+  },
+  requestHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  calendarIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 9,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  status: {
+    color: colors.primary,
+    backgroundColor: colors.soft,
+    borderRadius: 6,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  response: {
+    marginTop: 10,
+    color: colors.muted,
+    fontSize: 13,
+  },
   button: {
     marginTop: 18,
-    backgroundColor: '#0F172A',
+    backgroundColor: colors.primary,
     borderRadius: 12,
     paddingHorizontal: 22,
     paddingVertical: 12,

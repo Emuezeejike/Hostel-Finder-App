@@ -1,24 +1,17 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TextInput, Pressable, StyleSheet, ScrollView, Alert } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useAppStore } from '../../src/store/app-store';
+import { BrandLogo } from '../../src/components/BrandLogo';
+import { colors } from '../../src/theme/colors';
 
 export default function LoginScreen() {
   const params = useLocalSearchParams<{ role?: string }>();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [emailInput, setEmailInput] = useState<string | null>(null);
+  const [passwordInput, setPasswordInput] = useState<string | null>(null);
+  const [passwordVisible, setPasswordVisible] = useState(false);
   const login = useAppStore((state) => state.login);
-  const themeMode = useAppStore((state) => state.themeMode);
-  const isDark = themeMode === 'dark';
-  const palette = {
-    background: isDark ? '#120c1d' : '#f5f3ff',
-    surface: isDark ? '#1d1530' : '#ffffff',
-    text: isDark ? '#f4ecff' : '#1f1636',
-    muted: isDark ? '#d7c8f8' : '#5b4c7e',
-    border: isDark ? '#3f2d64' : '#e9d8ff',
-    primary: '#7c3aed',
-    secondary: isDark ? '#2d1b46' : '#ede9fe',
-  };
 
   const selectedRole = (params.role as 'student' | 'provider' | 'admin') || 'student';
 
@@ -27,14 +20,8 @@ export default function LoginScreen() {
     provider: { email: 'provider@example.com', password: 'password123', name: 'Olivia Homes', role: 'provider' },
     admin: { email: 'admin@example.com', password: 'password123', name: 'System Admin', role: 'admin' },
   } as const;
-
-  useEffect(() => {
-    if (params.role) {
-      const activeDemo = demoAccounts[selectedRole];
-      setEmail(activeDemo.email);
-      setPassword(activeDemo.password);
-    }
-  }, [selectedRole, params.role]);
+  const email = emailInput ?? (params.role ? demoAccounts[selectedRole].email : '');
+  const password = passwordInput ?? (params.role ? demoAccounts[selectedRole].password : '');
 
   const handleLogin = () => {
     if (!email || !password) {
@@ -95,93 +82,183 @@ export default function LoginScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: palette.background }]}>
-      <Text style={[styles.title, { color: palette.text }]}>Welcome back</Text>
-      <Text style={[styles.subtitle, { color: palette.muted }]}>Sign in as a {selectedRole} to continue the demo.</Text>
-      <Text style={[styles.demoNote, { color: palette.primary }]}>Demo profile: {demoAccounts[selectedRole].name}</Text>
+    <ScrollView style={styles.page} contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+      <BrandLogo compact style={styles.brand} />
+      <Text style={styles.title}>Welcome Back</Text>
+      <Text style={styles.subtitle}>Start Your Hostel Search</Text>
 
-      <TextInput
-        style={[styles.input, { backgroundColor: palette.surface, borderColor: palette.border, color: palette.text }]}
-        placeholder="Email"
-        placeholderTextColor={palette.muted}
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        keyboardType="email-address"
-      />
+      <View style={styles.form}>
+        <Text style={styles.label}>Email Address</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="name@gmail.com"
+          placeholderTextColor={colors.muted}
+          value={email}
+          onChangeText={setEmailInput}
+          autoCapitalize="none"
+          keyboardType="email-address"
+        />
+        <Text style={styles.label}>Password</Text>
+        <View style={styles.passwordField}>
+          <TextInput
+            style={styles.passwordInput}
+            placeholder="Enter your password"
+            placeholderTextColor={colors.muted}
+            value={password}
+            onChangeText={setPasswordInput}
+            secureTextEntry={!passwordVisible}
+          />
+          <Pressable accessibilityLabel={passwordVisible ? 'Hide password' : 'Show password'} onPress={() => setPasswordVisible(!passwordVisible)} hitSlop={10}>
+            <Ionicons name={passwordVisible ? 'eye-off-outline' : 'eye-outline'} size={21} color={colors.muted} />
+          </Pressable>
+        </View>
+        <Pressable style={styles.forgotButton} onPress={() => Alert.alert('Forgot password?', 'Contact support to reset your password.')}>
+          <Text style={styles.forgotText}>Forgot Password?</Text>
+        </Pressable>
+      </View>
 
-      <TextInput
-        style={[styles.input, { backgroundColor: palette.surface, borderColor: palette.border, color: palette.text }]}
-        placeholder="Password"
-        placeholderTextColor={palette.muted}
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-      />
-
-      <Pressable style={[styles.primaryButton, { backgroundColor: palette.primary }]} onPress={handleLogin}>
+      <Pressable style={styles.primaryButton} onPress={handleLogin}>
         <Text style={styles.primaryButtonText}>Log In</Text>
       </Pressable>
 
-      <Pressable onPress={() => router.push('/auth/register')}>
-        <Text style={[styles.secondaryText, { color: palette.primary }]}>Need an account? Create one</Text>
-      </Pressable>
-    </View>
+      <View style={styles.dividerRow}>
+        <View style={styles.divider} />
+        <Text style={styles.dividerText}>OR CONTINUE WITH</Text>
+        <View style={styles.divider} />
+      </View>
+      <View style={styles.socialRow}>
+        <Pressable accessibilityLabel="Continue with Apple" style={styles.socialButton} onPress={() => Alert.alert('Apple sign-in', 'Social sign-in is not connected in this demo.')}>
+          <Ionicons name="logo-apple" size={30} color="#08070B" />
+        </Pressable>
+        <Pressable accessibilityLabel="Continue with Google" style={styles.socialButton} onPress={() => Alert.alert('Google sign-in', 'Social sign-in is not connected in this demo.')}>
+          <Ionicons name="logo-google" size={28} color="#4285F4" />
+        </Pressable>
+      </View>
+      <Text style={styles.footerText}>Don&apos;t have an account? <Text style={styles.linkText} onPress={() => router.push('/auth/register')}>Sign Up</Text></Text>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  page: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
-    padding: 24,
-    justifyContent: 'center',
+    minHeight: '100%',
+    backgroundColor: colors.background,
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 28,
+  },
+  brand: {
+    marginBottom: 48,
   },
   title: {
-    fontSize: 30,
-    fontWeight: '800',
-    color: '#0F172A',
-    marginBottom: 8,
+    fontSize: 28,
+    fontWeight: '700',
+    color: colors.text,
   },
   subtitle: {
-    color: '#475569',
+    color: colors.muted,
     fontSize: 15,
-    marginBottom: 10,
+    marginTop: 4,
   },
-  demoNote: {
-    color: '#0F172A',
-    fontSize: 12,
-    fontWeight: '700',
-    marginBottom: 18,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
+  form: {
+    marginTop: 36,
+  },
+  label: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 7,
   },
   input: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    marginBottom: 14,
+    paddingHorizontal: 15,
+    height: 52,
+    marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.border,
+    fontSize: 15,
+    color: colors.text,
+  },
+  passwordField: {
+    height: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 15,
+  },
+  passwordInput: {
+    flex: 1,
+    color: colors.text,
     fontSize: 15,
   },
+  forgotButton: {
+    alignSelf: 'flex-end',
+    paddingVertical: 16,
+  },
+  forgotText: {
+    color: colors.primary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
   primaryButton: {
-    backgroundColor: '#0F172A',
-    borderRadius: 14,
-    paddingVertical: 14,
+    backgroundColor: colors.primary,
+    borderRadius: 15,
+    height: 54,
     alignItems: 'center',
+    justifyContent: 'center',
     marginTop: 8,
   },
   primaryButtonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '600',
   },
-  secondaryText: {
-    marginTop: 18,
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 26,
+  },
+  divider: {
+    height: 1,
+    flex: 1,
+    backgroundColor: colors.border,
+  },
+  dividerText: {
+    color: colors.muted,
+    fontSize: 11,
+  },
+  socialRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 28,
+    marginTop: 28,
+  },
+  socialButton: {
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  footerText: {
+    color: colors.text,
     textAlign: 'center',
-    color: '#2563EB',
-    fontWeight: '700',
+    marginTop: 'auto',
+    fontSize: 13,
+  },
+  linkText: {
+    color: colors.primary,
+    fontWeight: '600',
   },
 });
