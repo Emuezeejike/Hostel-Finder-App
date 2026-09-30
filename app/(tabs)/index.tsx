@@ -12,7 +12,6 @@ import {
 } from 'react-native';
 import { Link, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { mockProperties } from '../../src/data/properties';
 import { schools } from '../../src/data/schools';
 import { PropertyCard } from '../../src/components/PropertyCard';
 import { useAppStore } from '../../src/store/app-store';
@@ -24,12 +23,14 @@ const { width } = Dimensions.get('window');
 
 export default function HomeScreen() {
   const [query, setQuery] = useState('');
-  const selectedSchool = useAppStore((state) => state.selectedSchool) ?? schools[0];
+  const properties = useAppStore((state) => state.properties);
+  const availableSchools = useAppStore((state) => state.schools);
+  const selectedSchool = useAppStore((state) => state.selectedSchool) ?? availableSchools[0] ?? schools[0];
   const palette = colors;
 
   const filteredProperties = useMemo(() => {
     const lowerQuery = query.toLowerCase();
-    return mockProperties.filter((property) => {
+    return properties.filter((property) => {
       const distanceKm = calculateDistance(
         property.location.latitude,
         property.location.longitude,
@@ -44,7 +45,7 @@ export default function HomeScreen() {
 
       return matchesSchool && distanceKm < 10;
     });
-  }, [query, selectedSchool]);
+  }, [properties, query, selectedSchool]);
 
   const featured = filteredProperties.slice(0, 3);
 

@@ -7,7 +7,7 @@ export type PropertyType =
   | 'Hostel'
   | 'Apartment';
 
-export type InspectionStatus = 'Pending' | 'Confirmed' | 'Declined' | 'Completed' | 'Cancelled';
+export type InspectionStatus = 'Pending' | 'Confirmed' | 'Rescheduled' | 'Declined' | 'Completed' | 'Cancelled';
 export type ProceedStatus = 'Inspection completed' | 'Property accepted' | 'Proceeding' | 'Provider confirmation' | 'Completed';
 
 export interface School {
@@ -29,6 +29,7 @@ export interface Provider {
 
 export interface Property {
   id: string;
+  schoolId?: string;
   title: string;
   description: string;
   propertyType: PropertyType;

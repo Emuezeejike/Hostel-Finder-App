@@ -1,8 +1,19 @@
+import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { fetchProperties, fetchSchools } from '../src/api/client';
+import { useAppStore } from '../src/store/app-store';
 
 export default function RootLayout() {
+  const setProperties = useAppStore((state) => state.setProperties);
+  const setSchools = useAppStore((state) => state.setSchools);
+
+  useEffect(() => {
+    void fetchProperties().then(setProperties).catch(() => undefined);
+    void fetchSchools().then(setSchools).catch(() => undefined);
+  }, [setProperties, setSchools]);
+
   return (
     <SafeAreaProvider>
       <StatusBar style="dark" />

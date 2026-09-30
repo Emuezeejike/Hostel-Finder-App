@@ -13,8 +13,11 @@ import { colors } from '../../src/theme/colors';
 
 export default function PropertyDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const property = mockProperties.find((item) => item.id === id) ?? mockProperties[0];
-  const school = schools[0];
+  const properties = useAppStore((state) => state.properties);
+  const availableSchools = useAppStore((state) => state.schools);
+  const selectedSchool = useAppStore((state) => state.selectedSchool);
+  const property = properties.find((item) => item.id === id) ?? mockProperties[0];
+  const school = selectedSchool ?? availableSchools[0] ?? schools[0];
   const user = useAppStore((state) => state.authUser);
   const [authModalVisible, setAuthModalVisible] = useState(false);
 

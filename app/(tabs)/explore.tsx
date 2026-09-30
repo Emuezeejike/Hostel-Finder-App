@@ -2,7 +2,6 @@ import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { mockProperties } from '../../src/data/properties';
 import { useAppStore } from '../../src/store/app-store';
 import { schools } from '../../src/data/schools';
 import { PropertyCard } from '../../src/components/PropertyCard';
@@ -12,14 +11,16 @@ export default function ExploreScreen() {
   const [query, setQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
   const [selectedType, setSelectedType] = useState('');
-  const selectedSchool = useAppStore((state) => state.selectedSchool) ?? schools[0];
+  const properties = useAppStore((state) => state.properties);
+  const availableSchools = useAppStore((state) => state.schools);
+  const selectedSchool = useAppStore((state) => state.selectedSchool) ?? availableSchools[0] ?? schools[0];
   const filters = ['All', 'Verified', 'Location', 'Property type'];
   const propertyTypes = ['Hostel', 'Self-contained', 'Room & Parlour', 'Shared Apartment'];
 
   const filteredProperties = useMemo(() => {
     const search = query.trim().toLowerCase();
 
-    return mockProperties.filter((property) => {
+    return properties.filter((property) => {
       const haystack = [
         property.title,
         property.location.address,
@@ -33,12 +34,12 @@ export default function ExploreScreen() {
       const matchesFilter =
         activeFilter === 'All' ||
         (activeFilter === 'Verified' && property.verificationStatus === 'VERIFIED') ||
-        (activeFilter === 'Location' && property.location.city === selectedSchool.city) ||
+        (activeFilter === 'Location' && (property.schoolId === selectedSchool.id || (Boolean(selectedSchool.city) && property.location.city === selectedSchool.city))) ||
         (activeFilter === 'Property type' && (!selectedType || property.propertyType === selectedType));
 
       return matchesSearch && matchesFilter;
     });
-  }, [activeFilter, query, selectedSchool.city, selectedType]);
+  }, [activeFilter, properties, query, selectedSchool.city, selectedSchool.id, selectedType]);
 
   return (
     <View style={styles.container}>

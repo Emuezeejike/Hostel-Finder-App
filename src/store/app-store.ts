@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { mockProperties } from '../data/properties';
+import { schools as demoSchools } from '../data/schools';
 import { InspectionRequest, Property, Report, Review, School, VerificationStatus } from '../types';
 
 const webStorage = {
@@ -71,9 +73,30 @@ interface ProviderApprovalItem {
   name: string;
   type: 'Provider' | 'Listing';
   status: string;
+  location?: string;
+  school?: string;
+  distance?: string;
+  drivingTime?: string;
+  facilities?: string[];
+}
+
+export interface AdminUser {
+  id: string;
+  name: string;
+  role: string;
+  status: string;
+  email?: string;
+  school?: string;
+  matricNumber?: string;
+  registeredAt?: string;
+  verifiedAt?: string;
 }
 
 interface AppState {
+  properties: Property[];
+  setProperties: (properties: Property[]) => void;
+  schools: School[];
+  setSchools: (schools: School[]) => void;
   selectedSchool: School | null;
   setSelectedSchool: (school: School) => void;
   searchQuery: string;
@@ -94,9 +117,16 @@ interface AppState {
   addReport: (report: Report) => void;
   providerProperties: Property[];
   addProviderProperty: (property: Property) => void;
+  updateProviderProperty: (id: string, updates: Partial<Property>) => void;
+  providerPropertyDraft: Property | null;
+  setProviderPropertyDraft: (property: Property | null) => void;
+  availabilitySchedule: Record<string, { available: boolean; from: string; to: string }>;
+  setAvailabilitySchedule: (schedule: Record<string, { available: boolean; from: string; to: string }>) => void;
   adminApprovals: ProviderApprovalItem[];
   approveApproval: (id: string) => void;
-  adminUsers: { id: string; name: string; role: string; status: string }[];
+  updateApprovalStatus: (id: string, status: string) => void;
+  adminUsers: AdminUser[];
+  updateAdminUserStatus: (id: string, status: string) => void;
 }
 
 const demoProviderProperties: Property[] = [
@@ -150,6 +180,8 @@ const demoProviderProperties: Property[] = [
 export const useAppStore = create<AppState>()(
   persist(
     (set) => ({
+      properties: mockProperties,
+      schools: demoSchools,
       selectedSchool: null,
       searchQuery: '',
       guestMode: true,
@@ -188,16 +220,45 @@ export const useAppStore = create<AppState>()(
         },
       ],
       providerProperties: demoProviderProperties,
+      providerPropertyDraft: null,
+      availabilitySchedule: {
+        Monday: { available: true, from: '10:00 AM', to: '02:00 PM' },
+        Tuesday: { available: false, from: '10:00 AM', to: '02:00 PM' },
+        Wednesday: { available: true, from: '10:00 AM', to: '02:00 PM' },
+        Thursday: { available: false, from: '10:00 AM', to: '02:00 PM' },
+        Friday: { available: false, from: '10:00 AM', to: '02:00 PM' },
+        Saturday: { available: false, from: '10:00 AM', to: '02:00 PM' },
+        Sunday: { available: false, from: '10:00 AM', to: '02:00 PM' },
+      },
       adminApprovals: [
-        { id: 'approval-1', name: 'Urban Nest Homes', type: 'Provider', status: 'Awaiting documents' },
-        { id: 'approval-2', name: 'Fresh Lodge', type: 'Provider', status: 'Reviewing compliance' },
-        { id: 'approval-3', name: 'Yabatech Residency', type: 'Listing', status: 'Pending verification' },
+        { id: 'approval-1', name: 'Sunrise Lodge', type: 'Listing', status: 'Pending verification', location: 'Adebayo Ogunleye, Ikeja, Lagos', school: 'University of Lagos', distance: '2.4 km', drivingTime: '12 min', facilities: ['Borehole', 'Electricity', 'Pre-Paid Meter', 'Wi-Fi'] },
+        { id: 'approval-2', name: 'Urban Nest Homes', type: 'Provider', status: 'Awaiting documents', location: 'Ikeja, Lagos' },
+        { id: 'approval-3', name: 'Fresh Lodge', type: 'Provider', status: 'Reviewing compliance', location: 'Yaba, Lagos' },
+        { id: 'approval-4', name: 'Yabatech Residency', type: 'Listing', status: 'Pending verification', location: 'Yaba, Lagos', school: 'Yaba College of Technology' },
       ],
       adminUsers: [
-        { id: 'user-1', name: 'Ada Okafor', role: 'Student', status: 'Active' },
-        { id: 'user-2', name: 'Olivia Homes', role: 'Provider', status: 'Verified' },
-        { id: 'user-3', name: 'System Admin', role: 'Admin', status: 'Online' },
+        { id: 'user-1', name: 'John Doe', role: 'Student', status: 'Verified', email: 'john.doe@gmail.com', school: 'University of Lagos', matricNumber: '20501051909', registeredAt: '12 Aug 2024', verifiedAt: '14 Aug 2024' },
+        { id: 'user-2', name: 'Amina Mohammed', role: 'Student', status: 'Pending', email: 'amina.m@gmail.com', school: 'Lagos State University', matricNumber: '20501051909', registeredAt: '12 Sep 2024' },
+        { id: 'user-3', name: 'Tunde Oladipo', role: 'Student', status: 'Requires Correction', email: 'tunde.o@gmail.com', school: 'Lagos State Polytechnic', matricNumber: '20501051909', registeredAt: '14 Sep 2024' },
+        { id: 'user-4', name: 'Esther Lily', role: 'Student', status: 'Verification Issue', email: 'esther.l@gmail.com', school: 'Lagos State Polytechnic', matricNumber: '20501051909', registeredAt: '12 Sep 2024' },
+        { id: 'user-5', name: 'Ibrahim Kabir', role: 'Student', status: 'Suspended', email: 'ibrahim.k@gmail.com', school: 'Lagos State Polytechnic', matricNumber: '20501051909', registeredAt: '12 Sep 2024' },
+        { id: 'user-6', name: 'Olivia Homes', role: 'Provider', status: 'Verified', email: 'olivia@homes.ng', registeredAt: '20 Aug 2024', verifiedAt: '22 Aug 2024' },
+        { id: 'user-7', name: 'System Admin', role: 'Admin', status: 'Online', email: 'admin@hostelfinder.ng' },
       ],
+      setProperties: (properties) => set({ properties }),
+      setSchools: (schools) =>
+        set((state) => {
+          const normalizeName = (name: string) => name.toLowerCase().replace(/\s*\([^)]*\)/g, '').trim();
+          const selectedName = state.selectedSchool ? normalizeName(state.selectedSchool.name) : '';
+          const selectedSchool = selectedName
+            ? schools.find((school) => {
+                const schoolName = normalizeName(school.name);
+                return schoolName.includes(selectedName) || selectedName.includes(schoolName);
+              })
+            : schools.find((school) => /university of lagos/i.test(school.name)) ?? schools[0];
+
+          return { schools, selectedSchool: selectedSchool ?? state.selectedSchool };
+        }),
       setSelectedSchool: (school) => set({ selectedSchool: school }),
       setSearchQuery: (query) => set({ searchQuery: query }),
       setGuestMode: (value) => set({ guestMode: value }),
@@ -215,9 +276,25 @@ export const useAppStore = create<AppState>()(
       addReport: (report) => set((state) => ({ reports: [report, ...state.reports] })),
       addProviderProperty: (property) =>
         set((state) => ({ providerProperties: [property, ...state.providerProperties] })),
+      updateProviderProperty: (id, updates) =>
+        set((state) => ({
+          providerProperties: state.providerProperties.map((property) =>
+            property.id === id ? { ...property, ...updates } : property,
+          ),
+        })),
+      setProviderPropertyDraft: (property) => set({ providerPropertyDraft: property }),
+      setAvailabilitySchedule: (availabilitySchedule) => set({ availabilitySchedule }),
       approveApproval: (id) =>
         set((state) => ({
-          adminApprovals: state.adminApprovals.filter((approval) => approval.id !== id),
+          adminApprovals: state.adminApprovals.map((approval) => approval.id === id ? { ...approval, status: 'Approved' } : approval),
+        })),
+      updateApprovalStatus: (id, status) =>
+        set((state) => ({
+          adminApprovals: state.adminApprovals.map((approval) => approval.id === id ? { ...approval, status } : approval),
+        })),
+      updateAdminUserStatus: (id, status) =>
+        set((state) => ({
+          adminUsers: state.adminUsers.map((user) => user.id === id ? { ...user, status } : user),
         })),
     }),
     {

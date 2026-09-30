@@ -20,7 +20,8 @@ const timeSlots = ['2:00 PM - 3:00 PM', '4:00 PM - 5:00 PM', '5:00 PM - 6:00 PM'
 
 export default function InspectionRequestScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const property = mockProperties.find((item) => item.id === id) ?? mockProperties[0];
+  const properties = useAppStore((state) => state.properties);
+  const property = properties.find((item) => item.id === id) ?? mockProperties[0];
   const addInspectionRequest = useAppStore((state) => state.addInspectionRequest);
   const requestCount = useAppStore((state) => state.inspectionRequests.length);
   const selectedSchool = useAppStore((state) => state.selectedSchool);

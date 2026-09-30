@@ -9,6 +9,7 @@ type Tab = 'home' | 'search' | 'book' | 'menu';
 interface MainBottomBarProps {
   active: Tab;
   propertyId?: string;
+  bookLabel?: string;
 }
 
 const tabs: { key: Tab; label: string; icon: 'home-outline' | 'search-outline' | 'bookmark-outline' | 'menu' }[] = [
@@ -18,7 +19,7 @@ const tabs: { key: Tab; label: string; icon: 'home-outline' | 'search-outline' |
   { key: 'menu', label: 'Menu', icon: 'menu' },
 ];
 
-export function MainBottomBar({ active, propertyId }: MainBottomBarProps) {
+export function MainBottomBar({ active, propertyId, bookLabel = 'Book' }: MainBottomBarProps) {
   const navigate = (tab: Tab) => {
     if (tab === 'home') router.push('/(tabs)');
     if (tab === 'search') router.push('/(tabs)/explore');
@@ -42,12 +43,12 @@ export function MainBottomBar({ active, propertyId }: MainBottomBarProps) {
             key={tab.key}
             accessibilityRole="tab"
             accessibilityState={{ selected }}
-            accessibilityLabel={tab.label}
+            accessibilityLabel={tab.key === 'book' ? bookLabel : tab.label}
             onPress={() => navigate(tab.key)}
             style={styles.item}
           >
             <Ionicons name={tab.icon} size={23} color={tint} />
-            <Text style={[styles.label, { color: tint }]}>{tab.label}</Text>
+            <Text style={[styles.label, { color: tint }]}>{tab.key === 'book' ? bookLabel : tab.label}</Text>
           </Pressable>
         );
       })}

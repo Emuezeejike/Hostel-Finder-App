@@ -8,20 +8,21 @@ import { colors } from '../src/theme/colors';
 
 export default function SchoolSelectionScreen() {
   const [query, setQuery] = useState('');
-  const selectedSchool = useAppStore((state) => state.selectedSchool) ?? schools[0];
+  const availableSchools = useAppStore((state) => state.schools);
+  const selectedSchool = useAppStore((state) => state.selectedSchool) ?? availableSchools[0] ?? schools[0];
   const setSelectedSchool = useAppStore((state) => state.setSelectedSchool);
 
   const filteredSchools = useMemo(() => {
     const search = query.trim().toLowerCase();
-    if (!search) return schools;
+    if (!search) return availableSchools;
 
-    return schools.filter(
+    return availableSchools.filter(
       (school) =>
         school.name.toLowerCase().includes(search) ||
         school.campus.toLowerCase().includes(search) ||
         school.city.toLowerCase().includes(search),
     );
-  }, [query]);
+  }, [availableSchools, query]);
 
   return (
     <View style={styles.container}>

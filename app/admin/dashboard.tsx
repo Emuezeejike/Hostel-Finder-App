@@ -3,98 +3,93 @@ import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppStore } from '../../src/store/app-store';
+import { BrandLogo } from '../../src/components/BrandLogo';
+import { colors } from '../../src/theme/colors';
 
 export default function AdminDashboard() {
   const adminApprovals = useAppStore((state) => state.adminApprovals);
-  const reports = useAppStore((state) => state.reports);
   const adminUsers = useAppStore((state) => state.adminUsers);
+  const properties = useAppStore((state) => state.providerProperties);
+  const pendingApprovals = adminApprovals.filter((approval) => approval.status !== 'Approved');
 
   const stats = [
-    { label: 'Pending approvals', value: String(adminApprovals.length), icon: 'shield-checkmark-outline' },
-    { label: 'Open reports', value: String(reports.length), icon: 'alert-circle-outline' },
-    { label: 'Active students', value: String(adminUsers.filter((user) => user.role === 'Student').length), icon: 'people-outline' },
-    { label: 'Verified providers', value: `${String(Math.round((adminUsers.filter((user) => user.role === 'Provider' && user.status === 'Verified').length / Math.max(adminUsers.filter((user) => user.role === 'Provider').length, 1)) * 100))}%`, icon: 'checkmark-circle-outline' },
+    { label: 'Total Properties', value: String(properties.length + pendingApprovals.filter((item) => item.type === 'Listing').length), trend: '12%', up: true },
+    { label: 'Pending Verification', value: String(pendingApprovals.length), trend: '6%', up: false },
+    { label: 'Total Inspections', value: String(useAppStore.getState().inspectionRequests.length), trend: '22%', up: true },
+    { label: 'Active Landlords', value: String(adminUsers.filter((user) => user.role === 'Provider' && user.status === 'Verified').length), trend: '8%', up: true },
+  ];
+  const today = new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+  const activities = [
+    { label: 'New Property Submitted', detail: pendingApprovals[0]?.name ?? 'No new property', time: '2h ago' },
+    { label: 'Inspection booked', detail: 'Maple Court Hostel', time: '3h ago' },
+    { label: 'Landlord verified', detail: 'Mr Tunde Adeyemi', time: '5h ago' },
+    { label: 'New user registration', detail: 'Student Hostel', time: '8h ago' },
   ];
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Admin dashboard</Text>
+    <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      <View style={styles.brandRow}><BrandLogo compact /><Text style={styles.date}>{today}</Text></View>
+      <Text style={styles.title}>Good Morning, Admin</Text>
+      <Text style={styles.subtitle}>Here&apos;s what&apos;s happening with your platform today.</Text>
 
       <View style={styles.grid}>
         {stats.map((stat) => (
           <View key={stat.label} style={styles.statCard}>
-            <Ionicons name={stat.icon as any} size={20} color="#0F172A" />
-            <Text style={styles.statValue}>{stat.value}</Text>
             <Text style={styles.statLabel}>{stat.label}</Text>
+            <Text style={styles.statValue}>{stat.value}</Text>
+            <Text style={[styles.trend, !stat.up && styles.trendDown]}>{stat.up ? '↑' : '↓'} {stat.trend}</Text>
           </View>
         ))}
       </View>
 
+      <Text style={styles.sectionTitle}>Quick Actions</Text>
       <View style={styles.actions}>
-        <Pressable style={styles.actionButton} onPress={() => router.push('/admin/approvals')}>
-          <Text style={styles.actionText}>Approvals</Text>
-        </Pressable>
-        <Pressable style={styles.actionButton} onPress={() => router.push('/admin/reports')}>
-          <Text style={styles.actionText}>Reports</Text>
-        </Pressable>
-        <Pressable style={styles.actionButton} onPress={() => router.push('/admin/users')}>
-          <Text style={styles.actionText}>Users</Text>
-        </Pressable>
+        <Action icon="shield-checkmark-outline" label="Verify Properties" onPress={() => router.push('/admin/approvals')} />
+        <Action icon="calendar-outline" label="View Inspections" onPress={() => router.push('/provider/inspections')} />
+        <Action icon="home-outline" label="Manage Properties" onPress={() => router.push('/admin/properties')} />
+        <Action icon="people-outline" label="Manage Landlords" onPress={() => router.push('/admin/users')} />
+        <Action icon="bar-chart-outline" label="View Reports" onPress={() => router.push('/admin/reports')} />
+      </View>
+
+      <View style={styles.recentHeader}><Text style={styles.sectionTitle}>Recent Activity</Text><Pressable onPress={() => router.push('/admin/approvals')} style={styles.seeAll}><Text style={styles.seeAllText}>See all</Text><Ionicons name="chevron-forward" size={17} color={colors.text} /></Pressable></View>
+      <View style={styles.activityTable}>
+        <View style={styles.tableHeader}><Text style={[styles.tableHeading, styles.activityColumn]}>Activity</Text><Text style={[styles.tableHeading, styles.detailColumn]}>Details</Text><Text style={[styles.tableHeading, styles.timeColumn]}>Time</Text></View>
+        {activities.map((activity) => <View key={activity.label} style={styles.activityRow}><Text style={[styles.activityText, styles.activityColumn]}>{activity.label}</Text><Text style={[styles.activityText, styles.detailColumn]} numberOfLines={1}>{activity.detail}</Text><Text style={[styles.activityText, styles.timeColumn]}>{activity.time}</Text></View>)}
       </View>
     </ScrollView>
   );
 }
 
+function Action(props: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void }) {
+  return <Pressable style={styles.actionButton} onPress={props.onPress}><View style={styles.actionIcon}><Ionicons name={props.icon} size={20} color={colors.primary} /></View><Text style={styles.actionText}>{props.label}</Text><Ionicons name="chevron-forward" size={18} color={colors.text} /></Pressable>;
+}
+
 const styles = StyleSheet.create({
-  container: {
-    flexGrow: 1,
-    backgroundColor: '#F8FAFC',
-    padding: 24,
-    paddingTop: 24,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#0F172A',
-    marginBottom: 18,
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  statCard: {
-    width: '48%',
-    backgroundColor: '#fff',
-    borderRadius: 18,
-    padding: 16,
-    marginBottom: 12,
-  },
-  statValue: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: '#0F172A',
-    marginTop: 10,
-  },
-  statLabel: {
-    marginTop: 6,
-    color: '#64748B',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  actions: {
-    marginTop: 22,
-    gap: 12,
-  },
-  actionButton: {
-    backgroundColor: '#0F172A',
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  actionText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 15,
-  },
+  container: { flexGrow: 1, backgroundColor: colors.background, paddingHorizontal: 22, paddingTop: 20, paddingBottom: 36 },
+  brandRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 },
+  date: { color: colors.muted, fontSize: 13 },
+  title: { fontSize: 27, lineHeight: 34, fontWeight: '800', color: '#171426' },
+  subtitle: { color: colors.muted, fontSize: 14, lineHeight: 20, marginBottom: 23 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginHorizontal: 8 },
+  statCard: { width: '48%', minHeight: 132, backgroundColor: colors.surface, borderRadius: 20, padding: 16, marginBottom: 12, shadowColor: '#271A40', shadowOpacity: 0.12, shadowRadius: 6, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
+  statLabel: { color: '#494354', fontSize: 14, lineHeight: 19, fontWeight: '600' },
+  statValue: { color: colors.text, fontSize: 31, fontWeight: '800', marginTop: 14 },
+  trend: { color: '#178A22', fontSize: 14, fontWeight: '700', alignSelf: 'flex-end' },
+  trendDown: { color: '#D82D2D' },
+  sectionTitle: { color: '#383440', fontSize: 18, fontWeight: '700' },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 10, marginTop: 12 },
+  actionButton: { width: '48%', minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 9, borderRadius: 14, backgroundColor: colors.surface, shadowColor: '#271A40', shadowOpacity: 0.1, shadowRadius: 5, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
+  actionIcon: { width: 37, height: 37, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.soft },
+  actionText: { color: '#171426', fontSize: 12, fontWeight: '600', flex: 1 },
+  recentHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 27, marginBottom: 10 },
+  seeAll: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  seeAllText: { color: colors.text, fontSize: 13 },
+  activityTable: { backgroundColor: colors.surface, borderRadius: 11, overflow: 'hidden' },
+  tableHeader: { minHeight: 42, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 2, borderColor: colors.border },
+  tableHeading: { color: colors.text, fontSize: 12, fontWeight: '700', paddingHorizontal: 8 },
+  activityRow: { minHeight: 62, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderColor: colors.border },
+  activityText: { color: '#45414B', fontSize: 11, paddingHorizontal: 8, lineHeight: 16 },
+  activityColumn: { width: '42%' },
+  detailColumn: { width: '38%' },
+  timeColumn: { width: '20%', textAlign: 'right' },
 });
