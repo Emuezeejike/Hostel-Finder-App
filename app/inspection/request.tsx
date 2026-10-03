@@ -1,12 +1,21 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, Image } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, Pressable, ScrollView, Image, TextInput } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { formatCurrency } from '../../src/utils/currency';
 import { useAppStore } from '../../src/store/app-store';
-import { ApiSlot, bookInspection, fetchOpenSlots } from '../../src/api/client';
+import { bookInspection } from '../../src/api/client';
 import { MainBottomBar } from '../../src/components/MainBottomBar';
 import { colors } from '../../src/theme/colors';
+
+const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+function dateKey(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
 
 export default function InspectionRequestScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
@@ -15,32 +24,19 @@ export default function InspectionRequestScreen() {
   const addInspectionRequest = useAppStore((state) => state.addInspectionRequest);
   const selectedSchool = useAppStore((state) => state.selectedSchool);
   const user = useAppStore((state) => state.authUser);
-  const [slots, setSlots] = useState<ApiSlot[]>([]);
+  const today = new Date();
+  const [calendarMonth, setCalendarMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
   const [selectedDate, setSelectedDate] = useState('');
-  const [selectedSlotId, setSelectedSlotId] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
+  const [selectedTime, setSelectedTime] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
 
-  useEffect(() => {
-    if (!id || user?.role !== 'student' || user.verificationStatus !== 'VERIFIED') return;
-    let mounted = true;
-    void fetchOpenSlots(id).then((items) => {
-      if (!mounted) return;
-      setSlots(items);
-      const firstDate = items[0] ? new Date(items[0].start).toDateString() : '';
-      setSelectedDate(firstDate);
-      setSelectedSlotId(items[0]?.id ?? '');
-    }).catch((error: unknown) => {
-      if (mounted) setFormError(error instanceof Error ? error.message : 'Unable to load inspection slots.');
-    }).finally(() => {
-      if (mounted) setIsLoading(false);
-    });
-    return () => { mounted = false; };
-  }, [id, user]);
-
-  const dates = [...new Set(slots.map((slot) => new Date(slot.start).toDateString()))];
-  const dateSlots = slots.filter((slot) => new Date(slot.start).toDateString() === selectedDate);
+  const firstWeekday = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), 1).getDay();
+  const daysInMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 0).getDate();
+  const calendarCells = Array.from({ length: firstWeekday + daysInMonth }, (_, index) =>
+    index < firstWeekday ? null : index - firstWeekday + 1,
+  );
+  const todayKey = dateKey(today);
 
   const handleSubmit = async () => {
     if (!user || user.role !== 'student') {
@@ -51,15 +47,31 @@ export default function InspectionRequestScreen() {
       router.push('/student/verification');
       return;
     }
-    if (!id || !selectedSlotId) {
-      setFormError('Choose an available inspection time first.');
+    if (!id || !selectedDate || !selectedTime) {
+      setFormError('Choose an inspection date and enter a time.');
       return;
     }
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(selectedTime)) {
+      setFormError('Enter a valid time in 24-hour format, such as 14:30.');
+      return;
+    }
+    if (selectedDate < todayKey) {
+      setFormError('Choose today or a future date.');
+      return;
+    }
+    const [year, month, day] = selectedDate.split('-').map(Number);
+    const [hour, minute] = selectedTime.split(':').map(Number);
+    const scheduledAt = new Date(year, month - 1, day, hour, minute).toISOString();
+    if (new Date(scheduledAt).getTime() <= Date.now()) {
+      setFormError('Choose a future time for your inspection.');
+      return;
+    }
+
     setIsSubmitting(true);
     setFormError('');
     try {
-      const booked = await bookInspection(id, selectedSlotId);
-      if (booked) addInspectionRequest(booked);
+      const booked = await bookInspection(id, scheduledAt);
+      addInspectionRequest(booked);
       router.push('/inspection/success');
     } catch (error) {
       setFormError(error instanceof Error ? error.message : 'Unable to book this inspection.');
@@ -79,7 +91,7 @@ export default function InspectionRequestScreen() {
         </Pressable>
         <View style={styles.headerText}>
           <Text style={styles.title}>Book Inspection</Text>
-          <Text style={styles.subtitle}>Choose a date and time that works for you. Slots reflect the landlord&apos;s availability.</Text>
+          <Text style={styles.subtitle}>Choose the date and time you would like to visit.</Text>
         </View>
       </View>
 
@@ -109,17 +121,46 @@ export default function InspectionRequestScreen() {
           <View style={styles.headingIcon}><Ionicons name="calendar-outline" size={20} color="#fff" /></View>
           <View>
             <Text style={styles.panelTitle}>Select Date</Text>
-            <Text style={styles.panelHint}>Available dates from landlord</Text>
+            <Text style={styles.panelHint}>Pick any date from today onward</Text>
           </View>
         </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateRow}>
-          {dates.map((date) => {
-            const label = new Date(date).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
-            const active = selectedDate === date;
-            return <Pressable key={date} onPress={() => { setSelectedDate(date); setSelectedSlotId(''); }} style={[styles.dateButton, active && styles.dateButtonActive]}><Text style={[styles.dateWeekday, active && styles.dateTextActive]}>{label}</Text><View style={[styles.dateDot, active && styles.dateDotActive]} /></Pressable>;
+        <View style={styles.monthHeader}>
+          <Pressable
+            accessibilityLabel="Previous month"
+            disabled={calendarMonth.getFullYear() === today.getFullYear() && calendarMonth.getMonth() === today.getMonth()}
+            onPress={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1))}
+            style={styles.monthButton}
+          >
+            <Ionicons name="chevron-back" size={19} color={colors.primary} />
+          </Pressable>
+          <Text style={styles.monthTitle}>{calendarMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</Text>
+          <Pressable accessibilityLabel="Next month" onPress={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1))} style={styles.monthButton}>
+            <Ionicons name="chevron-forward" size={19} color={colors.primary} />
+          </Pressable>
+        </View>
+        <View style={styles.calendarGrid}>
+          {weekdays.map((weekday) => <Text key={weekday} style={styles.weekdayLabel}>{weekday}</Text>)}
+          {calendarCells.map((day, index) => {
+            if (day === null) return <View key={`empty-${index}`} style={styles.calendarCell} />;
+            const date = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), day);
+            const key = dateKey(date);
+            const disabled = key < todayKey;
+            const active = key === selectedDate;
+            return (
+              <Pressable
+                key={key}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active, disabled }}
+                disabled={disabled}
+                onPress={() => setSelectedDate(key)}
+                style={[styles.calendarCell, styles.calendarDay, active && styles.calendarDayActive, disabled && styles.calendarDayDisabled]}
+              >
+                <Text style={[styles.calendarDayText, active && styles.calendarDayTextActive, disabled && styles.calendarDayTextDisabled]}>{day}</Text>
+              </Pressable>
+            );
           })}
-          {!isLoading && dates.length === 0 ? <Text style={styles.panelHint}>{user?.verificationStatus === 'VERIFIED' ? 'No dates are currently available.' : 'Verify your student account to view open times.'}</Text> : null}
-        </ScrollView>
+        </View>
+        {selectedDate ? <Text style={styles.selectedDate}>{new Date(`${selectedDate}T12:00:00`).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</Text> : null}
       </View>
 
       <View style={styles.bookingPanel}>
@@ -127,23 +168,23 @@ export default function InspectionRequestScreen() {
           <View style={styles.headingIcon}><Ionicons name="time-outline" size={20} color="#fff" /></View>
           <View>
             <Text style={styles.panelTitle}>Select Time</Text>
-            <Text style={styles.panelHint}>Available time slots</Text>
+            <Text style={styles.panelHint}>Enter a preferred time in 24-hour format</Text>
           </View>
         </View>
-        <View style={styles.timeGrid}>
-          {dateSlots.map((slot) => {
-            const active = selectedSlotId === slot.id;
-            const start = new Date(slot.start).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-            const end = new Date(slot.end).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-            return <Pressable key={slot.id} onPress={() => setSelectedSlotId(slot.id)} style={[styles.timeButton, active && styles.timeButtonActive]}><Text style={[styles.timeText, active && styles.timeTextActive]}>{start} - {end}</Text>{active && <Ionicons name="checkmark-circle" size={19} color="#fff" />}</Pressable>;
-          })}
-          {isLoading ? <Text style={styles.panelHint}>Loading available times...</Text> : null}
-          {!isLoading && selectedDate && dateSlots.length === 0 ? <Text style={styles.panelHint}>No open times for this date.</Text> : null}
-        </View>
+        <TextInput
+          accessibilityLabel="Preferred inspection time"
+          value={selectedTime}
+          onChangeText={(value) => setSelectedTime(value.replace(/[^\d:]/g, '').slice(0, 5))}
+          placeholder="HH:MM (for example, 14:30)"
+          placeholderTextColor={colors.muted}
+          keyboardType="numbers-and-punctuation"
+          maxLength={5}
+          style={styles.timeInput}
+        />
       </View>
 
       {formError ? <Text accessibilityRole="alert" style={styles.errorText}>{formError}</Text> : null}
-      <Pressable style={styles.submitButton} onPress={handleSubmit} disabled={isSubmitting || isLoading}>
+      <Pressable style={styles.submitButton} onPress={handleSubmit} disabled={isSubmitting}>
         <Text style={styles.submitText}>{isSubmitting ? 'Booking...' : 'Book Inspection'}</Text>
         <Ionicons name="arrow-forward" size={20} color="#fff" />
       </Pressable>
@@ -184,20 +225,20 @@ const styles = StyleSheet.create({
   headingIcon: { width: 37, height: 37, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primary },
   panelTitle: { color: colors.text, fontSize: 14, fontWeight: '600' },
   panelHint: { color: colors.muted, fontSize: 12, marginTop: 4 },
-  dateRow: { gap: 10, paddingRight: 2 },
-  dateButton: { width: 57, minHeight: 70, borderRadius: 11, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center', paddingVertical: 7 },
-  dateButtonActive: { backgroundColor: colors.primary },
-  dateWeekday: { color: colors.muted, fontSize: 11 },
-  dateDay: { color: colors.text, fontSize: 14, fontWeight: '600', marginTop: 3 },
-  dateMonth: { color: colors.muted, fontSize: 10 },
-  dateTextActive: { color: '#fff' },
-  dateDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: colors.primary, marginTop: 4 },
-  dateDotActive: { backgroundColor: '#fff' },
-  timeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  timeButton: { width: '48%', minHeight: 42, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 },
-  timeButtonActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  timeText: { color: colors.primary, fontSize: 11 },
-  timeTextActive: { color: '#fff' },
+  monthHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  monthButton: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
+  monthTitle: { color: colors.text, fontSize: 14, fontWeight: '700' },
+  calendarGrid: { flexDirection: 'row', flexWrap: 'wrap' },
+  weekdayLabel: { width: '14.28%', textAlign: 'center', color: colors.muted, fontSize: 11, fontWeight: '600', paddingVertical: 8 },
+  calendarCell: { width: '14.28%', height: 40, alignItems: 'center', justifyContent: 'center' },
+  calendarDay: { borderRadius: 20 },
+  calendarDayActive: { backgroundColor: colors.primary },
+  calendarDayDisabled: { opacity: 0.45 },
+  calendarDayText: { color: colors.text, fontSize: 13 },
+  calendarDayTextActive: { color: '#FFFFFF', fontWeight: '700' },
+  calendarDayTextDisabled: { color: colors.muted },
+  selectedDate: { color: colors.primary, fontSize: 12, fontWeight: '600', textAlign: 'center', marginTop: 8 },
+  timeInput: { minHeight: 48, borderWidth: 1, borderColor: colors.border, borderRadius: 9, paddingHorizontal: 12, color: colors.text, fontSize: 15 },
   submitButton: { height: 52, borderRadius: 12, backgroundColor: colors.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
   submitText: { color: '#fff', fontSize: 15, fontWeight: '600' },
   schoolNote: { color: colors.muted, textAlign: 'center', fontSize: 11, marginTop: 8 },

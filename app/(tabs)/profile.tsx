@@ -46,9 +46,6 @@ export default function ProfileScreen() {
           <Pressable style={[styles.menuItem, { backgroundColor: palette.surface, borderColor: palette.border }]} onPress={() => router.push('/provider/add-property')}>
             <Text style={[styles.menuText, { color: palette.text }]}>Add Property</Text>
           </Pressable>
-          <Pressable style={[styles.menuItem, { backgroundColor: palette.surface, borderColor: palette.border }]} onPress={() => router.push('/provider/inspections')}>
-            <Text style={[styles.menuText, { color: palette.text }]}>Inspection Requests</Text>
-          </Pressable>
         </>
       );
     }

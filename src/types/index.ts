@@ -7,7 +7,7 @@ export type PropertyType =
   | 'Hostel'
   | 'Apartment';
 
-export type InspectionStatus = 'Pending' | 'Confirmed' | 'Rescheduled' | 'Declined' | 'Completed' | 'Cancelled';
+export type InspectionStatus = 'Pending' | 'Confirmed' | 'Rescheduled' | 'Rejected' | 'Declined' | 'Completed' | 'Cancelled';
 export type ProceedStatus = 'Inspection completed' | 'Property accepted' | 'Proceeding' | 'Provider confirmation' | 'Completed';
 
 export interface School {

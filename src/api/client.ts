@@ -436,7 +436,7 @@ function mapInspection(value: unknown): InspectionRequest | null {
   const id = asString(value._id, asString(value.id));
   if (!id || !propertyId) return null;
   const status = asString(value.status, 'requested').toLowerCase();
-  const displayStatus = status === 'confirmed' ? 'Confirmed' : status === 'rescheduled' ? 'Rescheduled' : status === 'declined' ? 'Declined' : status === 'completed' ? 'Completed' : status === 'cancelled' ? 'Cancelled' : 'Pending';
+  const displayStatus = status === 'confirmed' ? 'Confirmed' : status === 'rescheduled' ? 'Rescheduled' : status === 'rejected' ? 'Rejected' : status === 'declined' ? 'Declined' : status === 'completed' ? 'Completed' : status === 'cancelled' ? 'Cancelled' : 'Pending';
   return {
     id,
     propertyId,
@@ -456,10 +456,10 @@ function inspectionList(payload: unknown): InspectionRequest[] {
   return records(payload, ['inspections', 'items']).map(mapInspection).filter((item): item is InspectionRequest => item !== null);
 }
 
-export async function bookInspection(propertyId: string, slotId: string): Promise<InspectionRequest | null> {
-  const payload = unwrap(await request('/inspections', 'POST', { propertyId, slotId }));
-  if (!isRecord(payload)) return null;
+export async function bookInspection(propertyId: string, scheduledAt: string): Promise<InspectionRequest> {
+  const payload = unwrap(await request('/inspections', 'POST', { propertyId, scheduledAt }));
   const inspection = mapInspection(isRecord(payload) ? payload.inspection ?? payload : payload);
+  if (!inspection) throw new ApiError('The server returned an invalid inspection booking.', 502, payload);
   return inspection;
 }
 
@@ -541,6 +541,10 @@ export async function updateAdminReport(id: string, status: 'reviewed' | 'resolv
 
 export async function fetchAdminInspections(status = 'confirmed'): Promise<InspectionRequest[]> {
   return inspectionList(await request(`/admin/inspections${queryString({ status })}`));
+}
+
+export async function updateAdminInspection(id: string, status: 'confirmed' | 'rejected'): Promise<unknown> {
+  return request(`/admin/inspections/${encodeURIComponent(id)}`, 'PUT', { status });
 }
 
 export async function sendSystemAnnouncement(userId: string, title: string, body: string): Promise<unknown> {

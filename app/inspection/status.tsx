@@ -14,7 +14,7 @@ export default function InspectionStatusScreen() {
     void fetchMyInspections().then(setInspectionRequests).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : 'Unable to load inspections.'));
   }, [setInspectionRequests]);
 
-  const cancel = (id: string) => Alert.alert('Cancel inspection?', 'The server will release the selected slot.', [
+  const cancel = (id: string) => Alert.alert('Cancel inspection?', 'This will cancel your inspection request.', [
     { text: 'Keep booking', style: 'cancel' },
     { text: 'Cancel booking', style: 'destructive', onPress: () => {
       void cancelInspection(id).then(async () => setInspectionRequests(await fetchMyInspections())).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : 'Unable to cancel this booking.'));
@@ -43,7 +43,7 @@ export default function InspectionStatusScreen() {
           <Text style={styles.info}>Provider response: {request.providerResponse}</Text>
           <Text style={styles.info}>Current status: {request.status}</Text>
           {request.status === 'Completed' && !request.accepted && <View style={styles.decisionActions}><Pressable style={styles.acceptButton} onPress={() => void decide(request.id, 'accepted')}><Text style={styles.acceptText}>Accept property</Text></Pressable><Pressable style={styles.rejectButton} onPress={() => void decide(request.id, 'rejected')}><Text style={styles.rejectText}>Reject property</Text></Pressable></View>}
-          {!['Completed', 'Cancelled', 'Declined'].includes(request.status) && <Pressable style={styles.cancelButton} onPress={() => cancel(request.id)}><Ionicons name="close-circle-outline" size={17} color="#A33B45" /><Text style={styles.cancelText}>Cancel inspection</Text></Pressable>}
+          {!['Completed', 'Cancelled', 'Declined', 'Rejected'].includes(request.status) && <Pressable style={styles.cancelButton} onPress={() => cancel(request.id)}><Ionicons name="close-circle-outline" size={17} color="#A33B45" /><Text style={styles.cancelText}>Cancel inspection</Text></Pressable>}
         </View>
       ))}
     </ScrollView>
