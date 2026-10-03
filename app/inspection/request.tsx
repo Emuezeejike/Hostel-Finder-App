@@ -43,10 +43,6 @@ export default function InspectionRequestScreen() {
       router.push('/auth/login');
       return;
     }
-    if (user.verificationStatus !== 'VERIFIED') {
-      router.push('/student/verification');
-      return;
-    }
     if (!id || !selectedDate || !selectedTime) {
       setFormError('Choose an inspection date and enter a time.');
       return;

@@ -68,9 +68,6 @@ export default function ProfileScreen() {
 
     return (
       <>
-        <Pressable style={[styles.menuItem, { backgroundColor: palette.surface, borderColor: palette.border }]} onPress={() => router.push('/student/verification')}>
-          <Text style={[styles.menuText, { color: palette.text }]}>Student Verification</Text>
-        </Pressable>
         <Pressable style={[styles.menuItem, { backgroundColor: palette.surface, borderColor: palette.border }]} onPress={() => router.push('/inspection/status')}>
           <Text style={[styles.menuText, { color: palette.text }]}>Inspection Status</Text>
         </Pressable>
