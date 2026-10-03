@@ -1,8 +1,9 @@
-import React, { useMemo, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAppStore } from '../../src/store/app-store';
+import { deleteProperty, fetchMyProperties, updateProperty } from '../../src/api/client';
 import { Property } from '../../src/types';
 import { colors } from '../../src/theme/colors';
 
@@ -12,7 +13,22 @@ const filters: PropertyFilter[] = ['All properties', 'Active', 'Pending'];
 export default function ProviderPropertiesScreen() {
   const [activeFilter, setActiveFilter] = useState<PropertyFilter>('All properties');
   const providerProperties = useAppStore((state) => state.providerProperties);
+  const setProviderProperties = useAppStore((state) => state.setProviderProperties);
   const selectedSchool = useAppStore((state) => state.selectedSchool);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+
+  useEffect(() => {
+    let mounted = true;
+    void fetchMyProperties().then((items) => {
+      if (mounted) setProviderProperties(items);
+    }).catch((error: unknown) => {
+      if (mounted) setLoadError(error instanceof Error ? error.message : 'Unable to load your properties.');
+    }).finally(() => {
+      if (mounted) setIsLoading(false);
+    });
+    return () => { mounted = false; };
+  }, [setProviderProperties]);
   const filteredProperties = useMemo(() => providerProperties.filter((property) => {
     if (activeFilter === 'Active') return property.verificationStatus === 'VERIFIED';
     if (activeFilter === 'Pending') return property.verificationStatus === 'PENDING';
@@ -33,8 +49,8 @@ export default function ProviderPropertiesScreen() {
         <Pressable accessibilityLabel="Add property" onPress={() => router.push('/provider/add-property')} style={styles.addButton}><Ionicons name="add" size={23} color="#FFFFFF" /></Pressable>
       </ScrollView>
 
-      {filteredProperties.length ? filteredProperties.map((property) => <PropertyManagementCard key={property.id} property={property} schoolName={selectedSchool?.name ?? 'Nearby campus'} onEdit={() => editProperty(property)} />) : (
-        <View style={styles.emptyState}><Ionicons name="home-outline" size={36} color={colors.primary} /><Text style={styles.emptyTitle}>No properties in this view</Text><Text style={styles.emptyText}>Try another status or add a property listing.</Text></View>
+      {isLoading ? <Text style={styles.emptyText}>Loading your properties...</Text> : filteredProperties.length ? filteredProperties.map((property) => <PropertyManagementCard key={property.id} property={property} schoolName={selectedSchool?.name ?? 'Nearby campus'} onEdit={() => editProperty(property)} />) : (
+        <View style={styles.emptyState}><Ionicons name="home-outline" size={36} color={colors.primary} /><Text style={styles.emptyTitle}>No properties in this view</Text><Text style={styles.emptyText}>{loadError || 'Try another status or add a property listing.'}</Text></View>
       )}
     </ScrollView>
   );
@@ -42,10 +58,30 @@ export default function ProviderPropertiesScreen() {
 
 function PropertyManagementCard(props: { property: Property; schoolName: string; onEdit: () => void }) {
   const property = props.property;
-  const updateProviderProperty = useAppStore((state) => state.updateProviderProperty);
+  const setProviderProperties = useAppStore((state) => state.setProviderProperties);
+  const [isSaving, setIsSaving] = useState(false);
   const isVerified = property.verificationStatus === 'VERIFIED';
   const statusLabel = isVerified ? 'Approved/Active' : property.verificationStatus === 'REJECTED' ? 'Requires Correction' : 'Pending Verification';
   const openAvailability = () => router.push({ pathname: '/provider/availability', params: { propertyId: property.id } });
+
+  const changeAvailability = async () => {
+    setIsSaving(true);
+    try {
+      await updateProperty(property.id, { availabilityStatus: property.availability === 'AVAILABLE' ? 'unavailable' : 'available' });
+      setProviderProperties(await fetchMyProperties());
+    } catch (error) {
+      Alert.alert('Unable to update availability', error instanceof Error ? error.message : 'Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const removeProperty = () => Alert.alert('Delete listing?', 'This removes the property from your account.', [
+    { text: 'Keep listing', style: 'cancel' },
+    { text: 'Delete', style: 'destructive', onPress: () => {
+      void deleteProperty(property.id).then(async () => setProviderProperties(await fetchMyProperties())).catch((error: unknown) => Alert.alert('Unable to delete listing', error instanceof Error ? error.message : 'Please try again.'));
+    } },
+  ]);
 
   return (
     <View style={styles.card}>
@@ -67,10 +103,11 @@ function PropertyManagementCard(props: { property: Property; schoolName: string;
         <ActionButton icon="eye-outline" label="View Property" onPress={() => router.push({ pathname: '/property/[id]', params: { id: property.id } })} />
         <ActionButton icon="create-outline" label="Edit Property" onPress={props.onEdit} />
         <ActionButton icon="wallet-outline" label="Update Rent" onPress={props.onEdit} />
-        <ActionButton icon="calendar-outline" label="Update Availability" onPress={() => updateProviderProperty(property.id, { availability: property.availability === 'AVAILABLE' ? 'UNAVAILABLE' : 'AVAILABLE' })} />
+        <ActionButton icon="calendar-outline" label={isSaving ? 'Saving...' : 'Update Availability'} onPress={() => void changeAvailability()} />
         <ActionButton icon="refresh-outline" label="Update Amenities" onPress={props.onEdit} />
         <ActionButton icon="images-outline" label="Update Images" onPress={props.onEdit} />
         <ActionButton icon="document-text-outline" label="Update Description" onPress={props.onEdit} />
+        <ActionButton icon="trash-outline" label="Delete Listing" onPress={removeProperty} />
         <ActionButton icon="calendar-number-outline" label="Manage Inspection Availability" onPress={openAvailability} />
       </View>
     </View>

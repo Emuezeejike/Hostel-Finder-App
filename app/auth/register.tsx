@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet, ScrollView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useAppStore } from '../../src/store/app-store';
+import { authenticate, registerProvider, registerStudent } from '../../src/api/client';
 import { BrandLogo } from '../../src/components/BrandLogo';
 import { colors } from '../../src/theme/colors';
 
 export default function RegisterScreen() {
+  const params = useLocalSearchParams<{ role?: string }>();
+  const role = params.role === 'provider' ? 'provider' : 'student';
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -16,9 +19,11 @@ export default function RegisterScreen() {
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [formError, setFormError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const login = useAppStore((state) => state.login);
+  const selectedSchool = useAppStore((state) => state.selectedSchool);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!fullName || !email || !phone || !password || !confirmPassword || !termsAccepted) {
       setFormError('Complete all fields and accept the terms to continue.');
       return;
@@ -27,26 +32,40 @@ export default function RegisterScreen() {
       setFormError('Your passwords do not match.');
       return;
     }
+    if (role === 'student' && !selectedSchool) {
+      setFormError('Select your school before creating your account.');
+      return;
+    }
     setFormError('');
-
-    login({
-      id: 'student-register-1',
-      name: fullName,
-      email,
-      role: 'student',
-    });
-
-    router.replace('/(tabs)');
+    setIsSubmitting(true);
+    try {
+      if (role === 'provider') {
+        const registered = await registerProvider({ email: email.trim(), password, confirmPassword, businessName: fullName.trim(), phone: phone.trim() });
+        const result = registered.token ? registered : await authenticate(email.trim(), password, 'provider');
+        login(result.user);
+        router.replace({ pathname: '/auth/otp', params: { email: email.trim(), role: 'provider' } });
+      } else {
+        const input = { email: email.trim(), password, confirmPassword, fullName: fullName.trim(), phone: phone.trim(), schoolId: selectedSchool!.id };
+        const registered = await registerStudent(input);
+        const result = registered.token ? registered : await authenticate(email.trim(), password, 'student');
+        login(result.user);
+        router.replace({ pathname: '/auth/otp', params: { email: email.trim(), role: 'student' } });
+      }
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : 'Unable to create your account. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <ScrollView style={styles.page} contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
       <BrandLogo compact style={styles.brand} />
-      <Text style={styles.title}>Create Your Account</Text>
+      <Text style={styles.title}>{role === 'provider' ? 'Create Provider Account' : 'Create Your Account'}</Text>
       <Text style={styles.subtitle}>Join &amp; Find Your Ideal Hostel</Text>
 
-      <Text style={styles.label}>Full Name</Text>
-      <TextInput style={styles.input} placeholder="Chinedu Okafor" placeholderTextColor={colors.muted} value={fullName} onChangeText={setFullName} />
+      <Text style={styles.label}>{role === 'provider' ? 'Business Name' : 'Full Name'}</Text>
+      <TextInput style={styles.input} placeholder={role === 'provider' ? 'Prime Hostel Solutions' : 'Chinedu Okafor'} placeholderTextColor={colors.muted} value={fullName} onChangeText={setFullName} />
 
       <Text style={styles.label}>Email Address</Text>
       <TextInput
@@ -61,6 +80,8 @@ export default function RegisterScreen() {
 
       <Text style={styles.label}>Phone Number</Text>
       <TextInput style={styles.input} placeholder="+234 816 277 2324" placeholderTextColor={colors.muted} value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
+
+      {role === 'student' && <Pressable style={[styles.input, { justifyContent: 'center' }]} onPress={() => router.push('/schools')}><Text style={{ color: colors.text }}>{selectedSchool?.name ?? 'Select your school'}</Text></Pressable>}
 
       <Text style={styles.label}>Password</Text>
       <View style={styles.passwordField}>
@@ -86,8 +107,8 @@ export default function RegisterScreen() {
       </Pressable>
 
       {formError ? <Text style={styles.errorText}>{formError}</Text> : null}
-      <Pressable style={styles.primaryButton} onPress={handleSubmit}>
-        <Text style={styles.primaryButtonText}>Create Account</Text>
+      <Pressable style={styles.primaryButton} onPress={handleSubmit} disabled={isSubmitting}>
+        <Text style={styles.primaryButtonText}>{isSubmitting ? 'Creating account...' : 'Create Account'}</Text>
       </Pressable>
 
       <View style={styles.dividerRow}>
@@ -104,7 +125,7 @@ export default function RegisterScreen() {
         </Pressable>
       </View>
 
-      <Text style={styles.footerText}>Already have an account? <Text style={styles.linkText} onPress={() => router.push('/auth/login')}>Log in</Text></Text>
+      <Text style={styles.footerText}>Already have an account? <Text style={styles.linkText} onPress={() => router.push({ pathname: '/auth/login', params: { role } })}>Log in</Text></Text>
     </ScrollView>
   );
 }

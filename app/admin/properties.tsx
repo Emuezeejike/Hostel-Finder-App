@@ -1,8 +1,9 @@
-import React, { useMemo, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAppStore } from '../../src/store/app-store';
+import { deleteProperty, fetchAdminInspections, fetchAdminProperties } from '../../src/api/client';
 import { Property } from '../../src/types';
 import { colors } from '../../src/theme/colors';
 
@@ -13,7 +14,27 @@ export default function AdminPropertiesScreen() {
   const [filter, setFilter] = useState<PropertyFilter>('All');
   const [search, setSearch] = useState('');
   const properties = useAppStore((state) => state.providerProperties);
-  const updateProviderProperty = useAppStore((state) => state.updateProviderProperty);
+  const setProviderProperties = useAppStore((state) => state.setProviderProperties);
+  const [inspectionCount, setInspectionCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [deletingId, setDeletingId] = useState('');
+  const status = filter === 'Active' ? 'verified' : filter === 'Pending' ? 'pending' : filter === 'Reported' ? 'rejected' : undefined;
+
+  useEffect(() => {
+    let mounted = true;
+    void Promise.all([fetchAdminProperties(status), fetchAdminInspections()]).then(([items, inspections]) => {
+      if (!mounted) return;
+      setProviderProperties(items);
+      setInspectionCount(inspections.length);
+      setError('');
+    }).catch((reason: unknown) => {
+      if (mounted) setError(reason instanceof Error ? reason.message : 'Unable to load admin property data.');
+    }).finally(() => {
+      if (mounted) setIsLoading(false);
+    });
+    return () => { mounted = false; };
+  }, [setProviderProperties, status]);
   const pendingCount = properties.filter((property) => property.verificationStatus === 'PENDING').length;
   const activeCount = properties.filter((property) => property.verificationStatus === 'VERIFIED').length;
   const filtered = useMemo(() => properties.filter((property) => {
@@ -22,32 +43,45 @@ export default function AdminPropertiesScreen() {
     const matchesFilter = filter === 'All' || (filter === 'Active' && property.verificationStatus === 'VERIFIED') || (filter === 'Pending' && property.verificationStatus === 'PENDING') || (filter === 'Reported' && property.verificationStatus === 'REJECTED');
     return matchesSearch && matchesFilter;
   }), [filter, properties, search]);
+  const removeProperty = async (property: Property) => {
+    setDeletingId(property.id);
+    setError('');
+    try {
+      await deleteProperty(property.id);
+      setProviderProperties(await fetchAdminProperties(status));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Unable to delete landlord record.');
+    } finally {
+      setDeletingId('');
+    }
+  };
 
   return (
     <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
       <Pressable accessibilityLabel="Go back" onPress={() => router.back()} style={styles.backButton}><Ionicons name="arrow-back" size={22} color={colors.text} /></Pressable>
       <Text style={styles.title}>Property Management</Text>
-      <Text style={styles.subtitle}>Allow Admin to manage approved properties</Text>
+      <Text style={styles.subtitle}>Remove property records submitted by landlords.</Text>
       <View style={styles.statsGrid}>
-        <Stat label="Total Properties" value={String(properties.length)} trend="↑ 12%" />
-        <Stat label="Pending Verification" value={String(pendingCount)} trend="↓ 6%" down />
-        <Stat label="Active Landlords" value={String(activeCount)} trend="↑ 8%" />
-        <Stat label="Total Inspections" value={String(useAppStore.getState().inspectionRequests.length)} trend="↑ 22%" />
+        <Stat label="Total Properties" value={String(properties.length)} />
+        <Stat label="Pending Verification" value={String(pendingCount)} />
+        <Stat label="Verified Properties" value={String(activeCount)} />
+        <Stat label="Inspections" value={String(inspectionCount)} />
       </View>
       <View style={styles.searchBox}><Ionicons name="search-outline" size={18} color={colors.muted} /><TextInput value={search} onChangeText={setSearch} placeholder="Search by property, landlord or location" placeholderTextColor={colors.muted} style={styles.searchInput} /></View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
         {filters.map((item) => <Pressable key={item} onPress={() => setFilter(item)} style={[styles.filterButton, filter === item && styles.filterSelected]}><Text style={[styles.filterText, filter === item && styles.filterTextSelected]}>{item}</Text>{item !== 'All' && <Text style={styles.filterCount}>{item === 'Active' ? activeCount : item === 'Pending' ? pendingCount : 0}</Text>}{filter === item && <Ionicons name="checkmark-done" size={16} color="#FFFFFF" />}</Pressable>)}
       </ScrollView>
-      {filtered.length ? filtered.map((property) => <AdminPropertyCard key={property.id} property={property} onToggle={() => updateProviderProperty(property.id, { availability: property.availability === 'AVAILABLE' ? 'UNAVAILABLE' : 'AVAILABLE' })} />) : <View style={styles.emptyState}><Ionicons name="home-outline" size={35} color={colors.primary} /><Text style={styles.emptyTitle}>No properties found</Text><Text style={styles.emptyText}>Try another filter or search term.</Text></View>}
+      {error ? <Text accessibilityRole="alert" style={styles.errorText}>{error}</Text> : null}
+      {isLoading ? <Text style={styles.emptyText}>Loading landlord records...</Text> : filtered.length ? filtered.map((property) => <AdminPropertyCard key={property.id} property={property} deleting={deletingId === property.id} onDelete={() => Alert.alert('Delete landlord record?', `Remove ${property.title} from the platform?`, [{ text: 'Cancel', style: 'cancel' }, { text: 'Delete', style: 'destructive', onPress: () => void removeProperty(property) }])} />) : <View style={styles.emptyState}><Ionicons name="home-outline" size={35} color={colors.primary} /><Text style={styles.emptyTitle}>No properties found</Text><Text style={styles.emptyText}>{error || 'Try another filter or search term.'}</Text></View>}
     </ScrollView>
   );
 }
 
-function Stat(props: { label: string; value: string; trend: string; down?: boolean }) {
-  return <View style={styles.statCard}><Text style={[styles.trend, props.down && styles.trendDown]}>{props.trend}</Text><Text style={styles.statLabel}>{props.label}</Text><Text style={styles.statValue}>{props.value}</Text></View>;
+function Stat(props: { label: string; value: string }) {
+  return <View style={styles.statCard}><Text style={styles.statLabel}>{props.label}</Text><Text style={styles.statValue}>{props.value}</Text></View>;
 }
 
-function AdminPropertyCard(props: { property: Property; onToggle: () => void }) {
+function AdminPropertyCard(props: { property: Property; deleting: boolean; onDelete: () => void }) {
   const property = props.property;
   const verified = property.verificationStatus === 'VERIFIED';
   const suspended = property.verificationStatus === 'REJECTED';
@@ -61,18 +95,19 @@ function AdminPropertyCard(props: { property: Property; onToggle: () => void }) 
           <Text style={styles.propertyName} numberOfLines={1}>{property.title}</Text>
           <Meta icon="location-outline" value={property.location.address || 'Location not provided'} />
           <Meta icon="school-outline" value={`Nearby School  •  ${property.schoolId ? 'Selected campus' : 'UNILAG'}`} />
-          <Meta icon="navigate-outline" value="Distance  •  1.2 km" />
-          <Meta icon="time-outline" value="Driving Time  •  10 mins" />
+          <Meta icon="navigate-outline" value={`Distance  •  ${property.schoolId ? 'Not returned by API' : 'Unavailable'}`} />
+          <Meta icon="time-outline" value="Driving time  •  Not returned by API" />
         </View>
       </View>
       <View style={styles.propertyLower}>
         <View style={styles.ownerColumn}>
           <Text style={styles.rent}>₦{property.price.toLocaleString()}/year</Text>
-          <View style={styles.availabilityRow}><Text style={[styles.availabilityText, property.availability !== 'AVAILABLE' && styles.unavailableText]}>{property.availability === 'AVAILABLE' ? 'Available' : 'Unavailable'}</Text><Switch value={property.availability === 'AVAILABLE'} onValueChange={props.onToggle} trackColor={{ false: '#D8D8DB', true: '#198F19' }} thumbColor="#FFFFFF" /></View>
+          <Text style={[styles.availabilityText, property.availability !== 'AVAILABLE' && styles.unavailableText]}>{property.availability === 'AVAILABLE' ? 'Available' : property.availability === 'BOOKED' ? 'Booked' : 'Unavailable'}</Text>
         </View>
         <View style={styles.ownerDetails}><Meta icon="person-circle-outline" value={`Landlord  •  ${property.provider.name}`} /><Text style={styles.propertyType}>{property.propertyType.toUpperCase()}</Text></View>
       </View>
-      <View style={styles.amenities}>{['Water', 'Light', 'Wifi', 'Security'].map((item, index) => <View key={item} style={styles.amenity}><Ionicons name={['water-outline', 'bulb-outline', 'wifi-outline', 'shield-checkmark-outline'][index] as keyof typeof Ionicons.glyphMap} size={16} color="#FFFFFF" /><Text style={styles.amenityText}>{item}</Text></View>)}</View>
+      <View style={styles.amenities}>{property.amenities.map((item) => <View key={item} style={styles.amenity}><Ionicons name="checkmark-circle-outline" size={16} color="#FFFFFF" /><Text style={styles.amenityText}>{item}</Text></View>)}</View>
+      <Pressable accessibilityRole="button" accessibilityLabel={`Delete ${property.title}`} disabled={props.deleting} onPress={props.onDelete} style={styles.deleteButton}><Ionicons name="trash-outline" size={16} color="#A33B45" /><Text style={styles.deleteText}>{props.deleting ? 'Deleting...' : 'Delete landlord record'}</Text></Pressable>
     </View>
   );
 }
@@ -126,7 +161,10 @@ const styles = StyleSheet.create({
   amenities: { minHeight: 34, borderRadius: 8, backgroundColor: colors.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', marginTop: 8, paddingHorizontal: 5 },
   amenity: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   amenityText: { color: '#FFFFFF', fontSize: 11 },
+  deleteButton: { minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, marginTop: 8, borderWidth: 1, borderColor: '#E7B8B8', borderRadius: 7 },
+  deleteText: { color: '#A33B45', fontSize: 12, fontWeight: '700' },
   emptyState: { minHeight: 190, backgroundColor: colors.surface, borderRadius: 14, alignItems: 'center', justifyContent: 'center', gap: 7 },
   emptyTitle: { color: colors.text, fontSize: 16, fontWeight: '700' },
   emptyText: { color: colors.muted, fontSize: 12 },
+  errorText: { color: '#A33B45', fontSize: 12, marginBottom: 10 },
 });

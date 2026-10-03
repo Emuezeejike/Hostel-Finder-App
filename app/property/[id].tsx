@@ -1,14 +1,14 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Image, Pressable } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { mockProperties } from '../../src/data/properties';
-import { schools } from '../../src/data/schools';
 import { calculateDistance, formatDistance } from '../../src/utils/distance';
 import { formatCurrency } from '../../src/utils/currency';
 import { AuthRequiredModal } from '../../src/components/AuthRequiredModal';
 import { MainBottomBar } from '../../src/components/MainBottomBar';
 import { useAppStore } from '../../src/store/app-store';
+import { ApiError, fetchPropertyById, fetchPropertyReviews } from '../../src/api/client';
+import { Property } from '../../src/types';
 import { colors } from '../../src/theme/colors';
 
 export default function PropertyDetailScreen() {
@@ -16,21 +16,55 @@ export default function PropertyDetailScreen() {
   const properties = useAppStore((state) => state.properties);
   const availableSchools = useAppStore((state) => state.schools);
   const selectedSchool = useAppStore((state) => state.selectedSchool);
-  const property = properties.find((item) => item.id === id) ?? mockProperties[0];
-  const school = selectedSchool ?? availableSchools[0] ?? schools[0];
+  const [remoteProperty, setRemoteProperty] = useState<Property | null>(null);
+  const [reviews, setReviews] = useState<unknown[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const property = remoteProperty ?? properties.find((item) => item.id === id);
+  const school = selectedSchool ?? availableSchools[0];
   const user = useAppStore((state) => state.authUser);
   const [authModalVisible, setAuthModalVisible] = useState(false);
 
+  useEffect(() => {
+    if (!id) return;
+    let mounted = true;
+    void fetchPropertyById(id, school?.id).then((item) => {
+      if (mounted) setRemoteProperty(item);
+    }).catch((error: unknown) => {
+      if (mounted) setLoadError(error instanceof ApiError ? error.message : 'Unable to load this property.');
+    }).finally(() => {
+      if (mounted) setIsLoading(false);
+    });
+    return () => { mounted = false; };
+  }, [id, school?.id]);
+
+  useEffect(() => {
+    if (!id) return;
+    void fetchPropertyReviews(id).then(setReviews).catch(() => setReviews([]));
+  }, [id]);
+
   const distanceKm = useMemo(
-    () =>
-      calculateDistance(
+    () => property && school
+      ? calculateDistance(
         property.location.latitude,
         property.location.longitude,
         school.latitude,
         school.longitude,
-      ),
+      )
+      : 0,
     [property, school],
   );
+
+  if (!property) {
+    return <View style={styles.missing}><Text style={styles.title}>{isLoading ? 'Loading property...' : 'Property unavailable'}</Text><Text style={styles.location}>{loadError || 'This listing could not be loaded from the server.'}</Text><Pressable onPress={() => router.back()}><Text style={styles.primaryButtonText}>Go back</Text></Pressable></View>;
+  }
+
+  const ratings = reviews.flatMap((review) => {
+    if (typeof review !== 'object' || review === null) return [];
+    const rating = (review as Record<string, unknown>).rating;
+    return typeof rating === 'number' && Number.isFinite(rating) ? [rating] : [];
+  });
+  const averageRating = ratings.length ? (ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length).toFixed(1) : null;
 
   return (
     <View style={styles.screen}>
@@ -46,19 +80,19 @@ export default function PropertyDetailScreen() {
           <Text style={styles.title}>{property.title}</Text>
           <View style={styles.verificationBadge}>
             <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
-            <Text style={styles.verificationText}>Verified Property</Text>
+            <Text style={styles.verificationText}>{property.verificationStatus === 'VERIFIED' ? 'Verified Property' : 'Verification pending'}</Text>
           </View>
         </View>
 
         <Text style={styles.location}>{property.location.address}</Text>
         <Text style={styles.distance}>
-          <Ionicons name="location-outline" size={15} color={colors.muted} /> {formatDistance(distanceKm)} from {school.name}
+          <Ionicons name="location-outline" size={15} color={colors.muted} /> {school ? `${formatDistance(distanceKm)} from ${school.name}` : 'Distance unavailable'}
         </Text>
 
         <View style={styles.ratingRow}>
           <Ionicons name="star" size={18} color={colors.primary} />
-          <Text style={styles.rating}>4.8</Text>
-          <Text style={styles.reviewCount}>• 120 Reviews</Text>
+          <Text style={styles.rating}>{averageRating ?? 'No rating'}</Text>
+          <Text style={styles.reviewCount}>• {reviews.length} Reviews</Text>
         </View>
         <Text style={styles.propertyType}>{property.propertyType.toUpperCase()}</Text>
         <Text style={styles.price}>{formatCurrency(property.price)}<Text style={styles.priceSuffix}>/year</Text></Text>
@@ -85,7 +119,7 @@ export default function PropertyDetailScreen() {
         <View style={styles.providerRow}>
           <View>
             <Text style={styles.providerName}>{property.provider.name}</Text>
-            <Text style={styles.providerVerified}>✓ Verified Provider</Text>
+            <Text style={styles.providerVerified}>{property.provider.isVerified ? '✓ Verified Provider' : 'Provider verification pending'}</Text>
           </View>
         </View>
       </View>
@@ -103,6 +137,13 @@ export default function PropertyDetailScreen() {
         >
           <Text style={styles.primaryButtonText}>Request Inspection</Text>
         </Pressable>
+        <Pressable style={styles.secondaryButton} onPress={() => router.push({ pathname: '/student/report', params: { propertyId: property.id } })}>
+          <Text style={styles.secondaryButtonText}>Report this property</Text>
+        </Pressable>
+        <Pressable style={styles.secondaryButton} onPress={() => router.push({ pathname: '/student/review', params: { propertyId: property.id } })}>
+          <Text style={styles.secondaryButtonText}>Write a review</Text>
+        </Pressable>
+        <Text style={styles.reviewHint}>Reviews require an accepted inspection.</Text>
       </View>
 
       <AuthRequiredModal visible={authModalVisible} onClose={() => setAuthModalVisible(false)} />
@@ -117,6 +158,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  missing: { flex: 1, backgroundColor: colors.background, padding: 24, justifyContent: 'center', gap: 12 },
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -276,4 +318,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
   },
+  secondaryButton: { minHeight: 44, borderWidth: 1, borderColor: colors.primary, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginTop: 9 },
+  secondaryButtonText: { color: colors.primary, fontSize: 14, fontWeight: '600' },
+  reviewHint: { color: colors.muted, fontSize: 11, textAlign: 'center', marginTop: 8 },
 });

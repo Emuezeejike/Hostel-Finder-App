@@ -14,10 +14,6 @@ interface UploadItem {
 
 export default function ProviderProfileScreen() {
   const authUser = useAppStore((state) => state.authUser);
-  const draft = useAppStore((state) => state.providerPropertyDraft);
-  const addProviderProperty = useAppStore((state) => state.addProviderProperty);
-  const updateProviderProperty = useAppStore((state) => state.updateProviderProperty);
-  const setProviderPropertyDraft = useAppStore((state) => state.setProviderPropertyDraft);
   const [fullName, setFullName] = useState(authUser?.name ?? '');
   const [email, setEmail] = useState(authUser?.email ?? '');
   const [phone, setPhone] = useState('');
@@ -51,14 +47,7 @@ export default function ProviderProfileScreen() {
       return;
     }
 
-    if (draft) {
-      const property = { ...draft, verificationStatus: 'PENDING' as const };
-      if (draft.id.startsWith('provider-')) addProviderProperty(property);
-      else updateProviderProperty(draft.id, property);
-      setProviderPropertyDraft(null);
-    }
-
-    router.replace('/provider/properties');
+    Alert.alert('Verification is not connected', 'The published API does not document a provider-document submission or upload route. These selected files have not been sent to the server.');
   };
 
   return (
@@ -78,6 +67,7 @@ export default function ProviderProfileScreen() {
       <Field label="ID Number*" value={idNumber} onChangeText={setIdNumber} placeholder="12345678901" />
 
       <Text style={styles.sectionTitle}>Required Documents</Text>
+      <Text style={styles.documentNotice}>Document selections stay on this device until the backend provides an upload endpoint.</Text>
       <UploadCard icon="document-text-outline" title="Government ID" file={governmentId} onPress={() => void pickDocument(setGovernmentId)} />
       <UploadCard icon="home-outline" title="Proof of Ownership" file={ownershipProof} onPress={() => void pickDocument(setOwnershipProof)} />
       <Pressable onPress={() => void pickPropertyPhoto()} style={styles.uploadCard}>
@@ -119,6 +109,7 @@ const styles = StyleSheet.create({
   selectField: { height: 58, backgroundColor: colors.surface, borderWidth: 1.5, borderColor: colors.primary, borderRadius: 16, paddingHorizontal: 15, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
   selectText: { color: colors.text, fontSize: 16, fontWeight: '600' },
   sectionTitle: { color: colors.text, fontSize: 25, fontWeight: '800', marginTop: 14, marginBottom: 15 },
+  documentNotice: { color: colors.muted, fontSize: 12, lineHeight: 17, marginBottom: 12 },
   uploadCard: { minHeight: 120, backgroundColor: colors.surface, borderRadius: 17, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 14, borderWidth: 1, borderColor: '#E5E1EC' },
   uploadIcon: { width: 58, height: 58, backgroundColor: colors.soft, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   uploadContent: { flex: 1, gap: 8 },

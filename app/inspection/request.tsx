@@ -1,49 +1,74 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView, Image } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { mockProperties } from '../../src/data/properties';
 import { formatCurrency } from '../../src/utils/currency';
 import { useAppStore } from '../../src/store/app-store';
+import { ApiSlot, bookInspection, fetchOpenSlots } from '../../src/api/client';
 import { MainBottomBar } from '../../src/components/MainBottomBar';
 import { colors } from '../../src/theme/colors';
-
-const dates = [
-  { weekday: 'Mon', day: '28', month: 'Sep' },
-  { weekday: 'Tue', day: '29', month: 'Sep' },
-  { weekday: 'Wed', day: '30', month: 'Sep' },
-  { weekday: 'Thu', day: '1', month: 'Oct' },
-  { weekday: 'Fri', day: '2', month: 'Oct' },
-];
-
-const timeSlots = ['2:00 PM - 3:00 PM', '4:00 PM - 5:00 PM', '5:00 PM - 6:00 PM', '6:00 PM - 7:00 PM'];
 
 export default function InspectionRequestScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const properties = useAppStore((state) => state.properties);
-  const property = properties.find((item) => item.id === id) ?? mockProperties[0];
+  const property = properties.find((item) => item.id === id);
   const addInspectionRequest = useAppStore((state) => state.addInspectionRequest);
-  const requestCount = useAppStore((state) => state.inspectionRequests.length);
   const selectedSchool = useAppStore((state) => state.selectedSchool);
   const user = useAppStore((state) => state.authUser);
-  const [selectedDate, setSelectedDate] = useState('Mon, 28 Sep');
-  const [selectedTime, setSelectedTime] = useState(timeSlots[3]);
+  const [slots, setSlots] = useState<ApiSlot[]>([]);
+  const [selectedDate, setSelectedDate] = useState('');
+  const [selectedSlotId, setSelectedSlotId] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState('');
 
-  const handleSubmit = () => {
-    addInspectionRequest({
-      id: `inspection-${requestCount + 1}`,
-      propertyId: property.id,
-      propertyName: property.title,
-      requestedDate: selectedDate,
-      requestedTime: selectedTime,
-      message: 'I would like to inspect this property.',
-      status: 'Pending',
-      providerResponse: '',
-      accepted: false,
-      proceedStatus: 'Provider confirmation',
+  useEffect(() => {
+    if (!id || user?.role !== 'student' || user.verificationStatus !== 'VERIFIED') return;
+    let mounted = true;
+    void fetchOpenSlots(id).then((items) => {
+      if (!mounted) return;
+      setSlots(items);
+      const firstDate = items[0] ? new Date(items[0].start).toDateString() : '';
+      setSelectedDate(firstDate);
+      setSelectedSlotId(items[0]?.id ?? '');
+    }).catch((error: unknown) => {
+      if (mounted) setFormError(error instanceof Error ? error.message : 'Unable to load inspection slots.');
+    }).finally(() => {
+      if (mounted) setIsLoading(false);
     });
-    router.push('/inspection/success');
+    return () => { mounted = false; };
+  }, [id, user]);
+
+  const dates = [...new Set(slots.map((slot) => new Date(slot.start).toDateString()))];
+  const dateSlots = slots.filter((slot) => new Date(slot.start).toDateString() === selectedDate);
+
+  const handleSubmit = async () => {
+    if (!user || user.role !== 'student') {
+      router.push('/auth/login');
+      return;
+    }
+    if (user.verificationStatus !== 'VERIFIED') {
+      router.push('/student/verification');
+      return;
+    }
+    if (!id || !selectedSlotId) {
+      setFormError('Choose an available inspection time first.');
+      return;
+    }
+    setIsSubmitting(true);
+    setFormError('');
+    try {
+      const booked = await bookInspection(id, selectedSlotId);
+      if (booked) addInspectionRequest(booked);
+      router.push('/inspection/success');
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : 'Unable to book this inspection.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
+  if (!property) return <View style={styles.missing}><Text style={styles.title}>Property unavailable</Text><Text style={styles.subtitle}>Return to the listings and choose a property loaded from the server.</Text></View>;
 
   return (
     <View style={styles.screen}>
@@ -89,17 +114,11 @@ export default function InspectionRequestScreen() {
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateRow}>
           {dates.map((date) => {
-            const label = `${date.weekday}, ${date.day} ${date.month}`;
-            const active = selectedDate === label;
-            return (
-              <Pressable key={label} onPress={() => setSelectedDate(label)} style={[styles.dateButton, active && styles.dateButtonActive]}>
-                <Text style={[styles.dateWeekday, active && styles.dateTextActive]}>{date.weekday}</Text>
-                <Text style={[styles.dateDay, active && styles.dateTextActive]}>{date.day}</Text>
-                <Text style={[styles.dateMonth, active && styles.dateTextActive]}>{date.month}</Text>
-                <View style={[styles.dateDot, active && styles.dateDotActive]} />
-              </Pressable>
-            );
+            const label = new Date(date).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+            const active = selectedDate === date;
+            return <Pressable key={date} onPress={() => { setSelectedDate(date); setSelectedSlotId(''); }} style={[styles.dateButton, active && styles.dateButtonActive]}><Text style={[styles.dateWeekday, active && styles.dateTextActive]}>{label}</Text><View style={[styles.dateDot, active && styles.dateDotActive]} /></Pressable>;
           })}
+          {!isLoading && dates.length === 0 ? <Text style={styles.panelHint}>{user?.verificationStatus === 'VERIFIED' ? 'No dates are currently available.' : 'Verify your student account to view open times.'}</Text> : null}
         </ScrollView>
       </View>
 
@@ -112,20 +131,20 @@ export default function InspectionRequestScreen() {
           </View>
         </View>
         <View style={styles.timeGrid}>
-          {timeSlots.map((slot) => {
-            const active = selectedTime === slot;
-            return (
-              <Pressable key={slot} onPress={() => setSelectedTime(slot)} style={[styles.timeButton, active && styles.timeButtonActive]}>
-                <Text style={[styles.timeText, active && styles.timeTextActive]}>{slot}</Text>
-                {active && <Ionicons name="checkmark-circle" size={19} color="#fff" />}
-              </Pressable>
-            );
+          {dateSlots.map((slot) => {
+            const active = selectedSlotId === slot.id;
+            const start = new Date(slot.start).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+            const end = new Date(slot.end).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+            return <Pressable key={slot.id} onPress={() => setSelectedSlotId(slot.id)} style={[styles.timeButton, active && styles.timeButtonActive]}><Text style={[styles.timeText, active && styles.timeTextActive]}>{start} - {end}</Text>{active && <Ionicons name="checkmark-circle" size={19} color="#fff" />}</Pressable>;
           })}
+          {isLoading ? <Text style={styles.panelHint}>Loading available times...</Text> : null}
+          {!isLoading && selectedDate && dateSlots.length === 0 ? <Text style={styles.panelHint}>No open times for this date.</Text> : null}
         </View>
       </View>
 
-      <Pressable style={styles.submitButton} onPress={handleSubmit}>
-        <Text style={styles.submitText}>Request Inspection</Text>
+      {formError ? <Text accessibilityRole="alert" style={styles.errorText}>{formError}</Text> : null}
+      <Pressable style={styles.submitButton} onPress={handleSubmit} disabled={isSubmitting || isLoading}>
+        <Text style={styles.submitText}>{isSubmitting ? 'Booking...' : 'Book Inspection'}</Text>
         <Ionicons name="arrow-forward" size={20} color="#fff" />
       </Pressable>
       {selectedSchool && <Text style={styles.schoolNote}>Booking as {user?.name ?? 'guest'} near {selectedSchool.name}</Text>}
@@ -136,6 +155,7 @@ export default function InspectionRequestScreen() {
 }
 
 const styles = StyleSheet.create({
+  missing: { flex: 1, backgroundColor: colors.background, padding: 24, justifyContent: 'center', gap: 10 },
   screen: { flex: 1, backgroundColor: colors.background },
   page: { flex: 1, backgroundColor: colors.background },
   content: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 36 },
@@ -181,4 +201,5 @@ const styles = StyleSheet.create({
   submitButton: { height: 52, borderRadius: 12, backgroundColor: colors.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
   submitText: { color: '#fff', fontSize: 15, fontWeight: '600' },
   schoolNote: { color: colors.muted, textAlign: 'center', fontSize: 11, marginTop: 8 },
+  errorText: { color: '#A33B45', fontSize: 12, marginBottom: 10 },
 });

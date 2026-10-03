@@ -2,14 +2,14 @@ import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TextInput, FlatList, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { schools } from '../src/data/schools';
 import { useAppStore } from '../src/store/app-store';
 import { colors } from '../src/theme/colors';
 
 export default function SchoolSelectionScreen() {
   const [query, setQuery] = useState('');
   const availableSchools = useAppStore((state) => state.schools);
-  const selectedSchool = useAppStore((state) => state.selectedSchool) ?? availableSchools[0] ?? schools[0];
+  const selectedSchool = useAppStore((state) => state.selectedSchool) ?? availableSchools[0];
+  const apiError = useAppStore((state) => state.apiError);
   const setSelectedSchool = useAppStore((state) => state.setSelectedSchool);
 
   const filteredSchools = useMemo(() => {
@@ -45,7 +45,8 @@ export default function SchoolSelectionScreen() {
       </View>
 
       <Text style={styles.currentLabel}>Current school</Text>
-      <Text style={styles.currentSchool}>{selectedSchool.name}</Text>
+      <Text style={styles.currentSchool}>{selectedSchool?.name ?? 'No school selected'}</Text>
+      {apiError ? <Text style={styles.errorText}>{apiError}</Text> : null}
 
       <FlatList
         data={filteredSchools}
@@ -124,6 +125,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
   },
+  errorText: { color: '#A33B45', fontSize: 12, marginHorizontal: 20, marginTop: 8 },
   list: {
     padding: 20,
     paddingBottom: 80,

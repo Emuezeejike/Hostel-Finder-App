@@ -1,9 +1,9 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { fetchProperties } from '../../src/api/client';
 import { useAppStore } from '../../src/store/app-store';
-import { schools } from '../../src/data/schools';
 import { PropertyCard } from '../../src/components/PropertyCard';
 import { colors } from '../../src/theme/colors';
 
@@ -11,11 +11,52 @@ export default function ExploreScreen() {
   const [query, setQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
   const [selectedType, setSelectedType] = useState('');
+  const [minPrice, setMinPrice] = useState('');
+  const [maxPrice, setMaxPrice] = useState('');
+  const [maxDistanceKm, setMaxDistanceKm] = useState('');
+  const [amenities, setAmenities] = useState<string[]>([]);
+  const [availableOnly, setAvailableOnly] = useState(false);
+  const [sortAscending, setSortAscending] = useState(false);
   const properties = useAppStore((state) => state.properties);
   const availableSchools = useAppStore((state) => state.schools);
-  const selectedSchool = useAppStore((state) => state.selectedSchool) ?? availableSchools[0] ?? schools[0];
+  const selectedSchool = useAppStore((state) => state.selectedSchool) ?? availableSchools[0];
+  const selectedSchoolId = selectedSchool?.id;
+  const selectedSchoolCity = selectedSchool?.city;
+  const setProperties = useAppStore((state) => state.setProperties);
+  const setApiError = useAppStore((state) => state.setApiError);
+  const apiError = useAppStore((state) => state.apiError);
+  const [isLoading, setIsLoading] = useState(true);
   const filters = ['All', 'Verified', 'Location', 'Property type'];
   const propertyTypes = ['Hostel', 'Self-contained', 'Room & Parlour', 'Shared Apartment'];
+
+  useEffect(() => {
+    const typeMap: Record<string, string> = {
+      Hostel: 'hostel',
+      'Self-contained': 'self_contain',
+      'Room & Parlour': 'room_and_parlour',
+      'Shared Apartment': 'shared_apartment',
+    };
+    const timer = setTimeout(() => {
+      void fetchProperties({
+        minPrice: minPrice ? Number(minPrice) : undefined,
+        maxPrice: maxPrice ? Number(maxPrice) : undefined,
+        schoolId: activeFilter === 'Location' || maxDistanceKm ? selectedSchool?.id : undefined,
+        maxDistanceKm: maxDistanceKm ? Number(maxDistanceKm) : undefined,
+        amenities,
+        propertyType: activeFilter === 'Property type' && selectedType ? typeMap[selectedType] : undefined,
+        availability: availableOnly ? 'available' : undefined,
+        sort: sortAscending ? 'price_asc' : undefined,
+        page: 1,
+        limit: 100,
+      }).then((items) => {
+        setProperties(items);
+        setApiError('');
+      }).catch((error: unknown) => {
+        setApiError(error instanceof Error ? error.message : 'Unable to search properties.');
+      }).finally(() => setIsLoading(false));
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [activeFilter, amenities, availableOnly, maxDistanceKm, maxPrice, minPrice, selectedSchool?.id, selectedType, setApiError, setProperties, sortAscending]);
 
   const filteredProperties = useMemo(() => {
     const search = query.trim().toLowerCase();
@@ -34,12 +75,12 @@ export default function ExploreScreen() {
       const matchesFilter =
         activeFilter === 'All' ||
         (activeFilter === 'Verified' && property.verificationStatus === 'VERIFIED') ||
-        (activeFilter === 'Location' && (property.schoolId === selectedSchool.id || (Boolean(selectedSchool.city) && property.location.city === selectedSchool.city))) ||
+        (activeFilter === 'Location' && Boolean(selectedSchoolId) && (property.schoolId === selectedSchoolId || (Boolean(selectedSchoolCity) && property.location.city === selectedSchoolCity))) ||
         (activeFilter === 'Property type' && (!selectedType || property.propertyType === selectedType));
 
       return matchesSearch && matchesFilter;
     });
-  }, [activeFilter, properties, query, selectedSchool.city, selectedSchool.id, selectedType]);
+  }, [activeFilter, properties, query, selectedSchoolCity, selectedSchoolId, selectedType]);
 
   return (
     <View style={styles.container}>
@@ -65,6 +106,17 @@ export default function ExploreScreen() {
           placeholderTextColor={colors.muted}
           style={styles.searchInput}
         />
+      </View>
+
+      <View style={styles.numericFilters}>
+        <TextInput value={minPrice} onChangeText={setMinPrice} placeholder="Min price" keyboardType="number-pad" style={styles.numericInput} />
+        <TextInput value={maxPrice} onChangeText={setMaxPrice} placeholder="Max price" keyboardType="number-pad" style={styles.numericInput} />
+        <TextInput value={maxDistanceKm} onChangeText={setMaxDistanceKm} placeholder="Max km" keyboardType="decimal-pad" style={styles.numericInput} />
+      </View>
+      <View style={styles.quickFilters}>
+        {['wifi', 'water', 'security'].map((amenity) => <Pressable key={amenity} onPress={() => setAmenities((current) => current.includes(amenity) ? current.filter((item) => item !== amenity) : [...current, amenity])} style={[styles.quickFilter, amenities.includes(amenity) && styles.quickFilterActive]}><Text style={[styles.quickFilterText, amenities.includes(amenity) && styles.quickFilterTextActive]}>{amenity}</Text></Pressable>)}
+        <Pressable onPress={() => setAvailableOnly((current) => !current)} style={[styles.quickFilter, availableOnly && styles.quickFilterActive]}><Text style={[styles.quickFilterText, availableOnly && styles.quickFilterTextActive]}>Available</Text></Pressable>
+        <Pressable onPress={() => setSortAscending((current) => !current)} style={[styles.quickFilter, sortAscending && styles.quickFilterActive]}><Text style={[styles.quickFilterText, sortAscending && styles.quickFilterTextActive]}>{sortAscending ? 'Price: low first' : 'Sort by price'}</Text></Pressable>
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
@@ -101,17 +153,19 @@ export default function ExploreScreen() {
         <Text style={styles.resultsCount}>{filteredProperties.length} results found</Text>
         <Pressable onPress={() => router.push('/schools')} style={styles.locationButton}>
           <Ionicons name="location-outline" size={15} color={colors.primary} />
-          <Text style={styles.locationText}>{selectedSchool.name}</Text>
+          <Text style={styles.locationText}>{selectedSchool?.name ?? 'Select school'}</Text>
         </Pressable>
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {filteredProperties.length > 0 ? (
+        {isLoading ? (
+          <Text style={styles.emptyText}>Loading properties...</Text>
+        ) : filteredProperties.length > 0 ? (
           filteredProperties.map((property) => (
             <PropertyCard
               key={property.id}
               property={property}
-              selectedSchoolId={selectedSchool.id}
+              selectedSchoolId={selectedSchool?.id ?? ''}
               onPress={() => router.push({ pathname: '/property/[id]', params: { id: property.id } })}
             />
           ))
@@ -119,7 +173,7 @@ export default function ExploreScreen() {
           <View style={styles.emptyState}>
             <Ionicons name="search-outline" size={40} color={colors.primary} />
             <Text style={styles.emptyTitle}>No accommodation found</Text>
-            <Text style={styles.emptyText}>Try another search or choose a different filter.</Text>
+            <Text style={styles.emptyText}>{apiError || 'Try another search or choose a different filter.'}</Text>
           </View>
         )}
       </ScrollView>
@@ -185,6 +239,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.text,
   },
+  numericFilters: { flexDirection: 'row', gap: 7, paddingHorizontal: 22, marginBottom: 8 },
+  numericInput: { minWidth: 0, flex: 1, height: 39, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 9, color: colors.text, fontSize: 12 },
+  quickFilters: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: 22, paddingBottom: 6 },
+  quickFilter: { minHeight: 29, justifyContent: 'center', paddingHorizontal: 9, borderRadius: 7, borderWidth: 1, borderColor: colors.border },
+  quickFilterActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  quickFilterText: { color: colors.text, fontSize: 11 },
+  quickFilterTextActive: { color: '#FFFFFF' },
   filters: {
     paddingHorizontal: 22,
     gap: 10,

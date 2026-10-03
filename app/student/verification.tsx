@@ -1,22 +1,33 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, Pressable, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppStore } from '../../src/store/app-store';
+import { sendStudentOtp } from '../../src/api/client';
 import { BrandLogo } from '../../src/components/BrandLogo';
 import { colors } from '../../src/theme/colors';
 
 export default function StudentVerificationScreen() {
   const verificationStatus = useAppStore((state) => state.studentVerificationStatus);
-  const setVerificationStatus = useAppStore((state) => state.setStudentVerificationStatus);
-  const [school, setSchool] = useState('');
-  const [matric, setMatric] = useState('');
-  const [email, setEmail] = useState('');
+  const user = useAppStore((state) => state.authUser);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState('');
 
-  const handleSubmit = () => {
-    if (!school || !matric || !email) return;
-    setVerificationStatus('PENDING');
-    router.back();
+  const handleSubmit = async () => {
+    if (!user) {
+      router.push('/auth/login');
+      return;
+    }
+    setIsSubmitting(true);
+    setFormError('');
+    try {
+      await sendStudentOtp();
+      router.push({ pathname: '/auth/otp', params: { email: user.email, role: user.role } });
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : 'Unable to request an email code.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -36,21 +47,17 @@ export default function StudentVerificationScreen() {
         <Text style={styles.subtitle}>Join &amp; Find Your Ideal Hostel</Text>
         <Text style={styles.status}>Current status: {verificationStatus.toLowerCase()}</Text>
 
-        <Text style={styles.label}>School/Institution</Text>
-        <TextInput style={styles.input} value={school} onChangeText={setSchool} placeholder="Input your school name" placeholderTextColor={colors.muted} />
+        <Text style={styles.label}>Account email</Text>
+        <Text style={styles.accountEmail}>{user?.email ?? 'Sign in to verify your account email.'}</Text>
+        <Text style={styles.note}>The available API verifies this email with an OTP. It does not currently provide a route to submit a matriculation number for academic verification.</Text>
 
-        <Text style={styles.label}>Matriculation Number</Text>
-        <TextInput style={styles.input} value={matric} onChangeText={setMatric} placeholder="e.g. 2021/12345678" placeholderTextColor={colors.muted} />
-
-        <Text style={styles.label}>Email</Text>
-        <TextInput style={styles.input} value={email} onChangeText={setEmail} placeholder="youremail@unilag.edu.ng" placeholderTextColor={colors.muted} autoCapitalize="none" keyboardType="email-address" />
-
-        <Pressable style={styles.primaryButton} onPress={handleSubmit}>
-          <Text style={styles.primaryButtonText}>Send Verification Email</Text>
+        {formError ? <Text accessibilityRole="alert" style={styles.errorText}>{formError}</Text> : null}
+        <Pressable style={styles.primaryButton} onPress={handleSubmit} disabled={isSubmitting}>
+          <Text style={styles.primaryButtonText}>{isSubmitting ? 'Requesting code...' : 'Send Verification Email'}</Text>
         </Pressable>
         <View style={styles.noteRow}>
           <Ionicons name="information-circle-outline" size={18} color={colors.text} />
-          <Text style={styles.note}>OTP code will be sent to your email.</Text>
+          <Text style={styles.otpHint}>OTP code will be sent to your account email.</Text>
         </View>
       </View>
 
@@ -70,11 +77,13 @@ const styles = StyleSheet.create({
   subtitle: { color: colors.text, textAlign: 'center', fontSize: 14, marginTop: 4, marginBottom: 18 },
   status: { color: colors.muted, fontSize: 11, textAlign: 'right', marginBottom: 6 },
   label: { color: colors.text, fontSize: 13, fontWeight: '500', marginTop: 8, marginBottom: 7 },
-  input: { height: 51, borderRadius: 13, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 14, color: colors.text, fontSize: 14, marginBottom: 3 },
+  accountEmail: { color: colors.text, fontSize: 14, paddingVertical: 9 },
+  errorText: { color: '#A33B45', fontSize: 12, marginBottom: 8 },
   primaryButton: { height: 52, borderRadius: 13, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', marginTop: 10, elevation: 3 },
   primaryButtonText: { color: '#fff', fontSize: 14, fontWeight: '600' },
   noteRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, marginTop: 14 },
-  note: { color: colors.text, fontSize: 12 },
+  note: { color: colors.muted, fontSize: 12, lineHeight: 18, marginTop: 14 },
+  otpHint: { color: colors.text, fontSize: 12 },
   support: { color: colors.text, textAlign: 'center', marginTop: 18, fontSize: 13 },
   supportLink: { color: colors.primary, fontWeight: '600' },
 });

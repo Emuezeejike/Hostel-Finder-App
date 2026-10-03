@@ -54,6 +54,7 @@ export interface InspectionRequest {
   id: string;
   propertyId: string;
   propertyName: string;
+  scheduledAt?: string;
   requestedDate: string;
   requestedTime: string;
   message: string;

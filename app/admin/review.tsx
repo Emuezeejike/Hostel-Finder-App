@@ -3,6 +3,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useAppStore } from '../../src/store/app-store';
+import { reviewAdminQueueItem } from '../../src/api/client';
 import { colors } from '../../src/theme/colors';
 
 const checklistItems = [
@@ -18,18 +19,31 @@ export default function AdminReviewScreen() {
   const approveApproval = useAppStore((state) => state.approveApproval);
   const updateApprovalStatus = useAppStore((state) => state.updateApprovalStatus);
   const [checkedItems, setCheckedItems] = useState<string[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
   const allChecked = checkedItems.length === checklistItems.length;
 
   const toggleChecklist = (item: string) => setCheckedItems((current) => current.includes(item) ? current.filter((entry) => entry !== item) : [...current, item]);
-  const finishReview = (status: 'Approved' | 'Needs Correction' | 'Rejected') => {
+  const finishReview = async (status: 'Approved' | 'Needs Correction' | 'Rejected') => {
     if (!approval) return;
     if (status === 'Approved' && !allChecked) {
       Alert.alert('Complete the checklist', 'Confirm each verification item before approving this submission.');
       return;
     }
-    if (status === 'Approved') approveApproval(approval.id);
-    else updateApprovalStatus(approval.id, status);
-    router.back();
+    setIsSubmitting(true);
+    setError('');
+    const kind = approval.type === 'Provider' ? 'providers' : 'properties';
+    const apiStatus = status === 'Approved' ? 'verified' : 'rejected';
+    try {
+      await reviewAdminQueueItem(kind, approval.id, apiStatus, status === 'Needs Correction' ? 'Please correct the submitted verification details.' : undefined);
+      if (status === 'Approved') approveApproval(approval.id);
+      else updateApprovalStatus(approval.id, status);
+      router.back();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Unable to submit this review.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (!approval) {
@@ -40,27 +54,26 @@ export default function AdminReviewScreen() {
     <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
       <Pressable accessibilityLabel="Go back" onPress={() => router.back()} style={styles.backButton}><Ionicons name="arrow-back" size={22} color={colors.text} /></Pressable>
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Landlord information</Text>
-        <DataRow label="Full Name" value={approval.name === 'Sunrise Lodge' ? 'Adebayo Adekemi' : approval.name} />
-        <DataRow label="Email" value="adebayo100@gmail.com" />
-        <DataRow label="Phone Number" value="09023323234" />
-        <DataRow label="Verification" value="NIN Slip Submitted" />
+        <Text style={styles.sectionTitle}>Submission information</Text>
+        <DataRow label={approval.type === 'Provider' ? 'Provider' : 'Property'} value={approval.name} />
+        <DataRow label="Email" value={approval.email || 'Not included in queue response'} />
+        <DataRow label="Phone Number" value={approval.phone || 'Not included in queue response'} />
+        <DataRow label="Verification" value={approval.verification || approval.status} />
       </View>
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Supporting documents</Text>
-        <DocumentRow label="Proof of ownership.pdf" />
-        <DocumentRow label="Government ID.jpg" />
+        {approval.documents?.length ? approval.documents.map((document) => <DocumentRow key={document} label={document} />) : <Text style={styles.dataValue}>No document links were included in the queue response.</Text>}
       </View>
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Property Information</Text>
-        <DataRow label="Location" value={approval.location ?? 'Ikeja, Lagos'} />
-        <DataRow label="School nearby" value={approval.school ?? 'University of Lagos'} />
-        <DataRow label="Distance from school" value={approval.distance ?? '2.4 km'} />
-        <DataRow label="Est. driving time" value={approval.drivingTime ?? '12 min'} />
+        <DataRow label="Location" value={approval.location || 'Not included in queue response'} />
+        <DataRow label="School nearby" value={approval.school || 'Not included in queue response'} />
+        <DataRow label="Distance from school" value={approval.distance || 'Not included in queue response'} />
+        <DataRow label="Est. driving time" value={approval.drivingTime || 'Not included in queue response'} />
       </View>
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Facilities</Text>
-        <View style={styles.facilities}>{(approval.facilities ?? ['Borehole', 'Electricity', 'Pre-Paid Meter', 'Wi-Fi', 'CCTV']).map((facility) => <Text key={facility} style={styles.facility}>{facility}</Text>)}</View>
+        <View style={styles.facilities}>{approval.facilities?.length ? approval.facilities.map((facility) => <Text key={facility} style={styles.facility}>{facility}</Text>) : <Text style={styles.dataValue}>No amenities were included in the queue response.</Text>}</View>
       </View>
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Verification Check-list</Text>
@@ -69,10 +82,11 @@ export default function AdminReviewScreen() {
           return <Pressable key={item} onPress={() => toggleChecklist(item)} style={styles.checkRow} accessibilityRole="checkbox" accessibilityState={{ checked }}><View style={[styles.checkbox, checked && styles.checkboxChecked]}>{checked && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}</View><Text style={styles.checkText}>{item}</Text></Pressable>;
         })}
       </View>
-      <Pressable style={[styles.approveButton, !allChecked && styles.disabledButton]} onPress={() => finishReview('Approved')}><Text style={styles.approveText}>Approve</Text></Pressable>
+      {error ? <Text accessibilityRole="alert" style={styles.errorText}>{error}</Text> : null}
+      <Pressable style={[styles.approveButton, (!allChecked || isSubmitting) && styles.disabledButton]} onPress={() => void finishReview('Approved')} disabled={isSubmitting}><Text style={styles.approveText}>{isSubmitting ? 'Submitting...' : 'Approve'}</Text></Pressable>
       <View style={styles.decisionRow}>
-        <Pressable style={styles.correctionButton} onPress={() => finishReview('Needs Correction')}><Text style={styles.correctionText}>Request Correction</Text></Pressable>
-        <Pressable style={styles.rejectButton} onPress={() => finishReview('Rejected')}><Text style={styles.rejectText}>Reject</Text></Pressable>
+        <Pressable style={styles.correctionButton} onPress={() => void finishReview('Needs Correction')} disabled={isSubmitting}><Text style={styles.correctionText}>Request Correction</Text></Pressable>
+        <Pressable style={styles.rejectButton} onPress={() => void finishReview('Rejected')} disabled={isSubmitting}><Text style={styles.rejectText}>Reject</Text></Pressable>
       </View>
     </ScrollView>
   );
@@ -105,6 +119,7 @@ const styles = StyleSheet.create({
   approveButton: { minHeight: 55, borderRadius: 11, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
   disabledButton: { opacity: 0.65 },
   approveText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
+  errorText: { color: '#A33B45', fontSize: 12, marginBottom: 8 },
   decisionRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, marginTop: 10 },
   correctionButton: { minHeight: 50, flex: 1, borderWidth: 1.5, borderColor: colors.primary, borderRadius: 10, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
   correctionText: { color: '#15131A', fontSize: 13, fontWeight: '700', textAlign: 'center' },

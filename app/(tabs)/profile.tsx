@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAppStore } from '../../src/store/app-store';
+import { clearApiToken } from '../../src/api/client';
 import { colors } from '../../src/theme/colors';
 
 export default function ProfileScreen() {
@@ -100,7 +101,7 @@ export default function ProfileScreen() {
 
       {renderRoleActions()}
 
-      <Pressable style={[styles.button, { backgroundColor: palette.primary }]} onPress={() => logout()}>
+      <Pressable style={[styles.button, { backgroundColor: palette.primary }]} onPress={() => { void clearApiToken(); logout(); router.replace('/'); }}>
         <Text style={styles.buttonText}>Log Out</Text>
       </Pressable>
 

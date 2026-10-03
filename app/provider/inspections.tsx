@@ -1,10 +1,11 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAppStore } from '../../src/store/app-store';
 import { InspectionStatus } from '../../src/types';
 import { colors } from '../../src/theme/colors';
+import { ApiSlot, fetchMySlots, fetchReceivedInspections, updateInspection } from '../../src/api/client';
 
 const filters = ['All', 'Confirmed', 'Rescheduled', 'Cancelled'] as const;
 type InspectionFilter = typeof filters[number];
@@ -13,9 +14,17 @@ export default function ProviderInspectionsScreen() {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<InspectionFilter>('All');
   const requests = useAppStore((state) => state.inspectionRequests);
+  const setInspectionRequests = useAppStore((state) => state.setInspectionRequests);
   const properties = useAppStore((state) => state.properties);
   const providerProperties = useAppStore((state) => state.providerProperties);
-  const updateInspectionRequest = useAppStore((state) => state.updateInspectionRequest);
+  const [slots, setSlots] = useState<ApiSlot[]>([]);
+  const [rescheduleFor, setRescheduleFor] = useState('');
+  const [apiError, setApiError] = useState('');
+
+  useEffect(() => {
+    void fetchReceivedInspections().then(setInspectionRequests).catch((error: unknown) => setApiError(error instanceof Error ? error.message : 'Unable to load inspection requests.'));
+    void fetchMySlots().then(setSlots).catch((error: unknown) => setApiError(error instanceof Error ? error.message : 'Unable to load your slots.'));
+  }, [setInspectionRequests]);
   const visibleRequests = useMemo(() => requests.filter((request) => {
     const property = [...properties, ...providerProperties].find((item) => item.id === request.propertyId);
     const query = search.trim().toLowerCase();
@@ -24,7 +33,32 @@ export default function ProviderInspectionsScreen() {
     return matchesSearch && matchesStatus;
   }), [filter, properties, providerProperties, requests, search]);
 
-  const setStatus = (id: string, status: InspectionStatus) => updateInspectionRequest(id, { status });
+  const setStatus = async (id: string, status: InspectionStatus) => {
+    if (status === 'Rescheduled') {
+      setRescheduleFor(id);
+      return;
+    }
+    setApiError('');
+    try {
+      if (status === 'Declined' || status === 'Cancelled') await updateInspection(id, 'decline', { reason: 'Declined by provider.' });
+      else if (status === 'Completed') await updateInspection(id, 'complete');
+      setInspectionRequests(await fetchReceivedInspections());
+    } catch (error) {
+      setApiError(error instanceof Error ? error.message : 'Unable to update this inspection.');
+    }
+  };
+
+  const chooseRescheduleSlot = async (request: (typeof requests)[number], slot: ApiSlot) => {
+    setApiError('');
+    try {
+      if (request.status === 'Pending') await updateInspection(request.id, 'schedule', { scheduledAt: slot.start });
+      else await updateInspection(request.id, 'reschedule', { slotId: slot.id });
+      setRescheduleFor('');
+      setInspectionRequests(await fetchReceivedInspections());
+    } catch (error) {
+      setApiError(error instanceof Error ? error.message : 'Unable to reschedule this inspection.');
+    }
+  };
 
   return (
     <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
@@ -36,6 +70,7 @@ export default function ProviderInspectionsScreen() {
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
         {filters.map((item) => <Pressable key={item} onPress={() => setFilter(item)} style={[styles.filterButton, filter === item && styles.filterButtonActive]}><Text style={[styles.filterText, filter === item && styles.filterTextActive]}>{item}</Text></Pressable>)}
       </ScrollView>
+      {apiError ? <Text accessibilityRole="alert" style={styles.errorText}>{apiError}</Text> : null}
 
       {visibleRequests.length ? visibleRequests.map((request) => {
         const property = [...properties, ...providerProperties].find((item) => item.id === request.propertyId);
@@ -53,9 +88,10 @@ export default function ProviderInspectionsScreen() {
             </View>
             <View style={styles.actions}>
               <Pressable onPress={() => router.push({ pathname: '/property/[id]', params: { id: request.propertyId } })} style={styles.primaryAction}><Ionicons name="eye-outline" size={16} color="#FFFFFF" /><Text style={styles.primaryActionText}>View Inspection</Text></Pressable>
-              <Pressable onPress={() => setStatus(request.id, 'Rescheduled')} style={styles.secondaryAction}><Ionicons name="calendar-outline" size={16} color={colors.primary} /><Text style={styles.secondaryActionText}>Reschedule</Text></Pressable>
-              <Pressable onPress={() => setStatus(request.id, 'Cancelled')} style={styles.secondaryAction}><Ionicons name="close-circle-outline" size={16} color={colors.primary} /><Text style={styles.secondaryActionText}>Cancel</Text></Pressable>
-              {request.status === 'Pending' && <Pressable onPress={() => setStatus(request.id, 'Confirmed')} style={styles.confirmAction}><Ionicons name="checkmark-circle-outline" size={16} color="#2E7D42" /><Text style={styles.confirmActionText}>Confirm</Text></Pressable>}
+              {request.status !== 'Completed' && request.status !== 'Declined' && <Pressable onPress={() => setStatus(request.id, 'Rescheduled')} style={styles.secondaryAction}><Ionicons name="calendar-outline" size={16} color={colors.primary} /><Text style={styles.secondaryActionText}>{request.status === 'Pending' ? 'Schedule' : 'Reschedule'}</Text></Pressable>}
+              {request.status === 'Pending' && <Pressable onPress={() => void setStatus(request.id, 'Declined')} style={styles.secondaryAction}><Ionicons name="close-circle-outline" size={16} color={colors.primary} /><Text style={styles.secondaryActionText}>Decline</Text></Pressable>}
+              {['Confirmed', 'Rescheduled'].includes(request.status) && <Pressable onPress={() => void setStatus(request.id, 'Completed')} style={styles.confirmAction}><Ionicons name="checkmark-circle-outline" size={16} color="#2E7D42" /><Text style={styles.confirmActionText}>Complete</Text></Pressable>}
+              {rescheduleFor === request.id && <View style={styles.slotChoices}>{slots.filter((slot) => slot.propertyId === request.propertyId && slot.status.toLowerCase() === 'open').map((slot) => <Pressable key={slot.id} onPress={() => void chooseRescheduleSlot(request, slot)} style={styles.slotChoice}><Text style={styles.slotChoiceText}>{new Date(slot.start).toLocaleString([], { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</Text></Pressable>)}{!slots.some((slot) => slot.propertyId === request.propertyId && slot.status.toLowerCase() === 'open') && <Text style={styles.emptyText}>No open slots to schedule.</Text>}</View>}
             </View>
           </View>
         );
@@ -103,6 +139,10 @@ const styles = StyleSheet.create({
   secondaryActionText: { color: colors.primary, fontSize: 11, fontWeight: '600' },
   confirmAction: { flex: 1, minWidth: 90, minHeight: 36, borderWidth: 1, borderColor: '#86C793', borderRadius: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 },
   confirmActionText: { color: '#2E7D42', fontSize: 11, fontWeight: '600' },
+  slotChoices: { width: '100%', flexDirection: 'row', flexWrap: 'wrap', gap: 7, paddingTop: 6 },
+  slotChoice: { minHeight: 32, paddingHorizontal: 9, justifyContent: 'center', borderRadius: 7, borderWidth: 1, borderColor: colors.primary },
+  slotChoiceText: { color: colors.primary, fontSize: 11 },
+  errorText: { color: '#A33B45', fontSize: 12, marginBottom: 10 },
   emptyState: { backgroundColor: colors.surface, minHeight: 210, borderRadius: 13, alignItems: 'center', justifyContent: 'center', gap: 8, padding: 22 },
   emptyTitle: { color: colors.text, fontSize: 17, fontWeight: '700' },
   emptyText: { color: colors.muted, fontSize: 13, textAlign: 'center' },

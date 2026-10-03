@@ -1,13 +1,22 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppStore } from '../../src/store/app-store';
+import { fetchMyInspections } from '../../src/api/client';
 import { colors } from '../../src/theme/colors';
 
 export default function InspectionsScreen() {
   const user = useAppStore((state) => state.authUser);
   const requests = useAppStore((state) => state.inspectionRequests);
+  const setInspectionRequests = useAppStore((state) => state.setInspectionRequests);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+
+  useEffect(() => {
+    if (!user || user.role !== 'student') return;
+    void fetchMyInspections().then(setInspectionRequests).catch((error: unknown) => setLoadError(error instanceof Error ? error.message : 'Unable to load inspections.')).finally(() => setIsLoading(false));
+  }, [setInspectionRequests, user]);
 
   if (!user) {
     return (
@@ -28,6 +37,8 @@ export default function InspectionsScreen() {
     <ScrollView style={styles.page} contentContainerStyle={styles.listContainer} showsVerticalScrollIndicator={false}>
       <Text style={styles.heading}>My Inspections</Text>
       <Text style={styles.intro}>Track your property visits and provider updates.</Text>
+      {loadError ? <Text accessibilityRole="alert" style={styles.error}>{loadError}</Text> : null}
+      {isLoading ? <Text style={styles.intro}>Loading your inspections...</Text> : null}
       {requests.length ? requests.map((request) => (
         <Pressable key={request.id} style={styles.card} onPress={() => router.push('/inspection/status')}>
           <View style={styles.requestHeader}>
@@ -101,6 +112,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 4,
   },
+  error: { color: '#A33B45', fontSize: 12, marginTop: 10 },
   requestHeader: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -13,13 +13,13 @@ const roleCards = [
   {
     role: 'provider',
     title: 'Provider',
-    description: 'List properties, review inspection requests, and manage approvals.',
+    description: 'Create an account, sign in, and add your property.',
     accent: colors.primary,
   },
   {
     role: 'admin',
     title: 'Admin',
-    description: 'Review provider applications, monitor reports, and manage users.',
+    description: 'Approve landlords, review student feedback, manage listings, and confirm inspections.',
     accent: colors.primary,
   },
 ] as const;
@@ -43,7 +43,7 @@ export default function RoleSelectionScreen() {
     <ScrollView contentContainerStyle={[styles.container, { backgroundColor: palette.background }]}>
       <Text style={[styles.eyebrow, { color: palette.primary }]}>OFF-CAMPUS</Text>
       <Text style={[styles.title, { color: palette.text }]}>Choose your role</Text>
-      <Text style={[styles.subtitle, { color: palette.muted }]}>Select the persona you want to demo and continue with a ready-to-use account.</Text>
+      <Text style={[styles.subtitle, { color: palette.muted }]}>Choose the account type you want to sign in with.</Text>
 
       {roleCards.map((card) => (
         <Pressable

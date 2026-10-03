@@ -1,11 +1,12 @@
-import React, { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { AdminUser, useAppStore } from '../../src/store/app-store';
+import { fetchAdminQueue, fetchAdminUsers, reviewAdminQueueItem, updateAdminUserStatus } from '../../src/api/client';
 import { colors } from '../../src/theme/colors';
 
-const statuses = ['All', 'Pending', 'Verified'] as const;
+const statuses = ['All', 'Pending', 'Active'] as const;
 type UserStatusFilter = typeof statuses[number];
 const roles = ['Students', 'Landlords'] as const;
 type UserRoleFilter = typeof roles[number];
@@ -15,10 +16,83 @@ export default function AdminUsersScreen() {
   const [statusFilter, setStatusFilter] = useState<UserStatusFilter>('All');
   const [roleFilter, setRoleFilter] = useState<UserRoleFilter>('Students');
   const users = useAppStore((state) => state.adminUsers);
-  const updateAdminUserStatus = useAppStore((state) => state.updateAdminUserStatus);
+  const setAdminUsers = useAppStore((state) => state.setAdminUsers);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let mounted = true;
+    const timer = setTimeout(() => {
+      const recordsRequest = statusFilter === 'Pending'
+        ? fetchAdminQueue(roleFilter === 'Students' ? 'students' : 'providers', roleFilter === 'Students' ? 'pending' : 'verified')
+        : fetchAdminUsers({
+          role: roleFilter === 'Students' ? 'student' : 'provider',
+          status: statusFilter === 'Active' ? 'active' : undefined,
+          q: search.trim() || undefined,
+        });
+      void recordsRequest.then((records) => {
+        if (!mounted) return;
+        const mapped = records.flatMap((record): AdminUser[] => {
+          if (typeof record !== 'object' || record === null) return [];
+          const item = record as Record<string, unknown>;
+          const id = String(item._id ?? item.id ?? '');
+          if (!id) return [];
+          const rawStatus = String(item.verificationStatus ?? item.status ?? 'pending').toLowerCase();
+          const status = rawStatus === 'verified' ? 'Verified' : rawStatus === 'active' ? 'Active' : rawStatus === 'suspended' ? 'Suspended' : rawStatus;
+          const school = typeof item.school === 'object' && item.school !== null ? item.school as Record<string, unknown> : {};
+          return [{
+            id,
+            name: String(item.fullName ?? item.businessName ?? item.name ?? 'Account'),
+            role: String(item.role ?? (roleFilter === 'Students' ? 'student' : 'provider')) === 'provider' ? 'Provider' : 'Student',
+            status,
+            email: String(item.email ?? ''),
+            school: String(school.name ?? item.schoolName ?? ''),
+            matricNumber: String(item.matricNumber ?? ''),
+            registeredAt: String(item.createdAt ?? ''),
+            verifiedAt: String(item.verifiedAt ?? ''),
+          }];
+        });
+        setAdminUsers(mapped);
+        setError('');
+      }).catch((reason: unknown) => {
+        if (mounted) setError(reason instanceof Error ? reason.message : 'Unable to load users.');
+      });
+    }, 250);
+    return () => { mounted = false; clearTimeout(timer); };
+  }, [roleFilter, search, setAdminUsers, statusFilter]);
+
+  const verifyUser = async (user: AdminUser) => {
+    try {
+      await reviewAdminQueueItem(user.role === 'Provider' ? 'providers' : 'students', user.id, 'verified');
+      const updated = await fetchAdminUsers({ role: user.role === 'Provider' ? 'provider' : 'student', q: search.trim() || undefined });
+      setAdminUsers(updated.flatMap((record): AdminUser[] => {
+        if (typeof record !== 'object' || record === null) return [];
+        const item = record as Record<string, unknown>;
+        const id = String(item._id ?? item.id ?? '');
+        if (!id) return [];
+        return [{ id, name: String(item.fullName ?? item.businessName ?? item.name ?? 'Account'), role: user.role, status: String(item.verificationStatus ?? item.status ?? 'Verified'), email: String(item.email ?? '') }];
+      }));
+    } catch (reason) {
+      Alert.alert('Unable to verify account', reason instanceof Error ? reason.message : 'Please try again.');
+    }
+  };
+
+  const toggleSuspension = async (user: AdminUser) => {
+    try {
+      await updateAdminUserStatus(user.id, user.status === 'Suspended' ? 'active' : 'suspended');
+      const records = await fetchAdminUsers({ role: user.role === 'Provider' ? 'provider' : 'student', q: search.trim() || undefined });
+      setAdminUsers(records.flatMap((record): AdminUser[] => {
+        if (typeof record !== 'object' || record === null) return [];
+        const item = record as Record<string, unknown>;
+        const id = String(item._id ?? item.id ?? '');
+        return id ? [{ id, name: String(item.fullName ?? item.businessName ?? item.name ?? 'Account'), role: user.role, status: String(item.status ?? 'active') === 'active' ? 'Verified' : 'Suspended', email: String(item.email ?? '') }] : [];
+      }));
+    } catch (reason) {
+      Alert.alert('Unable to update account', reason instanceof Error ? reason.message : 'Please try again.');
+    }
+  };
   const filtered = useMemo(() => users.filter((user) => {
     const matchesRole = roleFilter === 'Students' ? user.role === 'Student' : user.role === 'Provider';
-    const matchesStatus = statusFilter === 'All' || (statusFilter === 'Pending' ? user.status !== 'Verified' : user.status === 'Verified');
+    const matchesStatus = statusFilter === 'All' || user.status === statusFilter || (statusFilter === 'Pending' && user.status === 'Verified');
     const query = search.trim().toLowerCase();
     const matchesSearch = `${user.name} ${user.email ?? ''} ${user.school ?? ''} ${user.matricNumber ?? ''}`.toLowerCase().includes(query);
     return matchesRole && matchesStatus && matchesSearch;
@@ -32,7 +106,8 @@ export default function AdminUsersScreen() {
       <View style={styles.searchBox}><Ionicons name="search-outline" size={19} color={colors.muted} /><TextInput value={search} onChangeText={setSearch} placeholder="Search by name, email, school or matric no..." placeholderTextColor={colors.muted} style={styles.searchInput} /></View>
       <View style={styles.roleRow}>{roles.map((role) => <Pressable key={role} onPress={() => setRoleFilter(role)} style={[styles.roleButton, roleFilter === role && styles.roleButtonActive]}><Text style={[styles.roleText, roleFilter === role && styles.roleTextActive]}>{role}</Text></Pressable>)}</View>
       <View style={styles.statusRow}>{statuses.map((status) => <Pressable key={status} onPress={() => setStatusFilter(status)} style={[styles.statusButton, statusFilter === status && styles.statusButtonActive]}><Text style={[styles.statusButtonText, statusFilter === status && styles.statusButtonTextActive]}>{status}</Text></Pressable>)}</View>
-      {filtered.length ? filtered.map((user) => <UserCard key={user.id} user={user} onVerify={() => updateAdminUserStatus(user.id, 'Verified')} onSuspend={() => updateAdminUserStatus(user.id, user.status === 'Suspended' ? 'Active' : 'Suspended')} />) : <View style={styles.emptyState}><Ionicons name="people-outline" size={34} color={colors.primary} /><Text style={styles.emptyTitle}>No users found</Text><Text style={styles.emptyText}>Try a different role, status, or search term.</Text></View>}
+      {error ? <Text accessibilityRole="alert" style={styles.errorText}>{error}</Text> : null}
+      {filtered.length ? filtered.map((user) => <UserCard key={user.id} user={user} onVerify={() => void verifyUser(user)} onSuspend={() => void toggleSuspension(user)} />) : <View style={styles.emptyState}><Ionicons name="people-outline" size={34} color={colors.primary} /><Text style={styles.emptyTitle}>No users found</Text><Text style={styles.emptyText}>{error || 'Try a different role, status, or search term.'}</Text></View>}
     </ScrollView>
   );
 }
@@ -52,7 +127,7 @@ function UserCard(props: { user: AdminUser; onVerify: () => void; onSuspend: () 
         {user.registeredAt ? <UserDetail icon="calendar-outline" value={`Registered: ${user.registeredAt}`} /> : null}
         <UserDetail icon="shield-checkmark-outline" value={`Verified: ${user.verifiedAt ?? '---'}`} />
         <View style={styles.actions}>
-          {user.status !== 'Verified' && <Pressable accessibilityLabel={`Verify ${user.name}`} onPress={props.onVerify} style={styles.verifyAction}><Ionicons name="checkmark-circle-outline" size={16} color="#FFFFFF" /><Text style={styles.verifyText}>Verify</Text></Pressable>}
+          {user.status === 'Pending' && <Pressable accessibilityLabel={`Verify ${user.name}`} onPress={props.onVerify} style={styles.verifyAction}><Ionicons name="checkmark-circle-outline" size={16} color="#FFFFFF" /><Text style={styles.verifyText}>Verify</Text></Pressable>}
           <Pressable accessibilityLabel={`${user.status === 'Suspended' ? 'Restore' : 'Suspend'} ${user.name}`} onPress={props.onSuspend} style={styles.suspendAction}><Ionicons name={user.status === 'Suspended' ? 'refresh-outline' : 'ban-outline'} size={15} color={colors.primary} /><Text style={styles.suspendText}>{user.status === 'Suspended' ? 'Restore' : 'Suspend'}</Text></Pressable>
         </View>
       </View>
@@ -103,5 +178,6 @@ const styles = StyleSheet.create({
   suspendText: { color: colors.primary, fontSize: 11, fontWeight: '600' },
   emptyState: { minHeight: 180, backgroundColor: colors.surface, borderRadius: 14, alignItems: 'center', justifyContent: 'center', gap: 7 },
   emptyTitle: { color: colors.text, fontSize: 16, fontWeight: '700' },
+  errorText: { color: '#A33B45', fontSize: 12, marginBottom: 10 },
   emptyText: { color: colors.muted, fontSize: 12 },
 });

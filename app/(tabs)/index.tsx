@@ -12,7 +12,6 @@ import {
 } from 'react-native';
 import { Link, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { schools } from '../../src/data/schools';
 import { PropertyCard } from '../../src/components/PropertyCard';
 import { useAppStore } from '../../src/store/app-store';
 import { calculateDistance, formatDistance } from '../../src/utils/distance';
@@ -25,25 +24,26 @@ export default function HomeScreen() {
   const [query, setQuery] = useState('');
   const properties = useAppStore((state) => state.properties);
   const availableSchools = useAppStore((state) => state.schools);
-  const selectedSchool = useAppStore((state) => state.selectedSchool) ?? availableSchools[0] ?? schools[0];
+  const selectedSchool = useAppStore((state) => state.selectedSchool) ?? availableSchools[0];
+  const apiError = useAppStore((state) => state.apiError);
   const palette = colors;
 
   const filteredProperties = useMemo(() => {
     const lowerQuery = query.toLowerCase();
     return properties.filter((property) => {
-      const distanceKm = calculateDistance(
+      const distanceKm = selectedSchool ? calculateDistance(
         property.location.latitude,
         property.location.longitude,
         selectedSchool.latitude,
         selectedSchool.longitude,
-      );
+      ) : null;
       const matchesSchool =
         property.title.toLowerCase().includes(lowerQuery) ||
         property.location.address.toLowerCase().includes(lowerQuery) ||
         property.location.city.toLowerCase().includes(lowerQuery) ||
         (lowerQuery === '' || property.location.address.toLowerCase().includes(lowerQuery));
 
-      return matchesSchool && distanceKm < 10;
+      return matchesSchool && (distanceKm === null || distanceKm < 10);
     });
   }, [properties, query, selectedSchool]);
 
@@ -64,7 +64,7 @@ export default function HomeScreen() {
           onPress={() => router.push('/schools')}
         >
           <Ionicons name="school-outline" size={18} color={palette.primary} />
-          <Text style={[styles.schoolText, { color: palette.text }]}>{selectedSchool.name}</Text>
+          <Text style={[styles.schoolText, { color: palette.text }]}>{selectedSchool?.name ?? 'Select school'}</Text>
           <Ionicons name="chevron-down" size={18} color={palette.text} />
         </Pressable>
 
@@ -88,7 +88,7 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.sectionHeaderRow}>
-          <Text style={[styles.sectionTitle, { color: palette.text }]}>Popular near your school</Text>
+          <Text style={[styles.sectionTitle, { color: palette.text }]}>{selectedSchool ? 'Popular near your school' : 'Popular properties'}</Text>
           <Link href="/(tabs)/explore" style={[styles.linkText, { color: palette.primary }]}>View all</Link>
         </View>
 
@@ -99,12 +99,12 @@ export default function HomeScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.horizontalList}
           renderItem={({ item }) => {
-            const distanceKm = calculateDistance(
+            const distanceKm = selectedSchool ? calculateDistance(
               item.location.latitude,
               item.location.longitude,
               selectedSchool.latitude,
               selectedSchool.longitude,
-            );
+            ) : null;
 
             return (
               <Pressable
@@ -119,7 +119,7 @@ export default function HomeScreen() {
                     <Text style={styles.featuredTagText}>Verified</Text>
                   </View>
                   <Text style={styles.featuredTitle}>{item.title}</Text>
-                  <Text style={styles.featuredMeta}>{formatDistance(distanceKm)} away</Text>
+                  <Text style={styles.featuredMeta}>{distanceKm === null ? 'Distance unavailable' : `${formatDistance(distanceKm)} away`}</Text>
                   <Text style={styles.featuredPrice}>₦{item.price.toLocaleString()} / year</Text>
                 </View>
               </Pressable>
@@ -136,15 +136,15 @@ export default function HomeScreen() {
             <PropertyCard
               key={property.id}
               property={property}
-              selectedSchoolId={selectedSchool.id}
+              selectedSchoolId={selectedSchool?.id ?? ''}
               onPress={() => router.push({ pathname: '/property/[id]', params: { id: property.id } })}
             />
           ))
         ) : (
           <View style={[styles.emptyState, { backgroundColor: palette.surface, borderColor: palette.border }]}>
             <Ionicons name="search-outline" size={42} color={palette.primary} />
-            <Text style={[styles.emptyTitle, { color: palette.text }]}>No properties found</Text>
-            <Text style={[styles.emptyText, { color: palette.muted }]}>Try changing your search or school selection.</Text>
+            <Text style={[styles.emptyTitle, { color: palette.text }]}>{apiError ? 'Unable to load properties' : 'No properties found'}</Text>
+            <Text style={[styles.emptyText, { color: palette.muted }]}>{apiError || 'Try changing your search or school selection.'}</Text>
           </View>
         )}
       </ScrollView>

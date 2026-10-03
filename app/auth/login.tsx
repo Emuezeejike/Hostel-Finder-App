@@ -3,6 +3,7 @@ import { View, Text, TextInput, Pressable, StyleSheet, ScrollView, Alert } from 
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useAppStore } from '../../src/store/app-store';
+import { authenticate } from '../../src/api/client';
 import { BrandLogo } from '../../src/components/BrandLogo';
 import { colors } from '../../src/theme/colors';
 
@@ -11,74 +12,32 @@ export default function LoginScreen() {
   const [emailInput, setEmailInput] = useState<string | null>(null);
   const [passwordInput, setPasswordInput] = useState<string | null>(null);
   const [passwordVisible, setPasswordVisible] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState('');
   const login = useAppStore((state) => state.login);
 
-  const selectedRole = (params.role as 'student' | 'provider' | 'admin') || 'student';
+  const selectedRole = params.role === 'provider' || params.role === 'admin' ? params.role : 'student';
+  const email = emailInput ?? '';
+  const password = passwordInput ?? '';
 
-  const demoAccounts = {
-    student: { email: 'student@example.com', password: 'password123', name: 'Ada Okafor', role: 'student' },
-    provider: { email: 'provider@example.com', password: 'password123', name: 'Olivia Homes', role: 'provider' },
-    admin: { email: 'admin@example.com', password: 'password123', name: 'System Admin', role: 'admin' },
-  } as const;
-  const email = emailInput ?? (params.role ? demoAccounts[selectedRole].email : '');
-  const password = passwordInput ?? (params.role ? demoAccounts[selectedRole].password : '');
-
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (!email || !password) {
+      setFormError('Enter your email and password.');
       return;
     }
-
-    const activeDemo = demoAccounts[selectedRole];
-    const matchesDemo = email.toLowerCase() === activeDemo.email && password === activeDemo.password;
-
-    if (!matchesDemo) {
-      const alternateLookup = Object.values(demoAccounts).find(
-        (account) => account.email.toLowerCase() === email.toLowerCase() || account.role === selectedRole,
-      );
-
-      if (alternateLookup) {
-        login({
-          id: `${alternateLookup.role}-demo`,
-          name: alternateLookup.name,
-          email: alternateLookup.email,
-          role: alternateLookup.role,
-        });
-
-        if (alternateLookup.role === 'provider') {
-          router.replace('/provider/dashboard');
-          return;
-        }
-
-        if (alternateLookup.role === 'admin') {
-          router.replace('/admin/dashboard');
-          return;
-        }
-
-        router.replace('/(tabs)');
-        return;
-      }
-
-      return;
+    setIsSubmitting(true);
+    setFormError('');
+    try {
+      const result = await authenticate(email.trim(), password, selectedRole);
+      login(result.user);
+          if (result.user.role === 'provider') router.replace('/provider/add-property');
+      else if (result.user.role === 'admin') router.replace('/admin/dashboard');
+      else router.replace('/(tabs)');
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : 'Unable to sign in. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
-
-    login({
-      id: `${activeDemo.role}-demo`,
-      name: activeDemo.name,
-      email: activeDemo.email,
-      role: activeDemo.role,
-    });
-
-    if (activeDemo.role === 'provider') {
-      router.replace('/provider/dashboard');
-      return;
-    }
-
-    if (activeDemo.role === 'admin') {
-      router.replace('/admin/dashboard');
-      return;
-    }
-
-    router.replace('/(tabs)');
   };
 
   return (
@@ -118,8 +77,9 @@ export default function LoginScreen() {
       </View>
 
       <Pressable style={styles.primaryButton} onPress={handleLogin}>
-        <Text style={styles.primaryButtonText}>Log In</Text>
+        <Text style={styles.primaryButtonText}>{isSubmitting ? 'Signing in...' : 'Log In'}</Text>
       </Pressable>
+      {formError ? <Text style={styles.errorText}>{formError}</Text> : null}
 
       <View style={styles.dividerRow}>
         <View style={styles.divider} />
@@ -134,7 +94,7 @@ export default function LoginScreen() {
           <Ionicons name="logo-google" size={28} color="#4285F4" />
         </Pressable>
       </View>
-      <Text style={styles.footerText}>Don&apos;t have an account? <Text style={styles.linkText} onPress={() => router.push('/auth/register')}>Sign Up</Text></Text>
+          {selectedRole !== 'admin' ? <Text style={styles.footerText}>Don&apos;t have an account? <Text style={styles.linkText} onPress={() => router.push({ pathname: '/auth/register', params: { role: selectedRole } })}>Sign Up</Text></Text> : null}
     </ScrollView>
   );
 }
@@ -222,6 +182,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  errorText: { color: '#B3261E', fontSize: 13, marginTop: 10 },
   dividerRow: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -3,6 +3,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useAppStore } from '../../src/store/app-store';
+import { createInspectionSlots } from '../../src/api/client';
 import { colors } from '../../src/theme/colors';
 
 const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -11,15 +12,64 @@ export default function ProviderAvailabilityScreen() {
   const { propertyId } = useLocalSearchParams<{ propertyId?: string }>();
   const schedule = useAppStore((state) => state.availabilitySchedule);
   const setAvailabilitySchedule = useAppStore((state) => state.setAvailabilitySchedule);
+  const user = useAppStore((state) => state.authUser);
   const [draft, setDraft] = useState(schedule);
+  const [isSaving, setIsSaving] = useState(false);
   const updateDay = (day: string, key: 'available' | 'from' | 'to', value: boolean | string) => {
-    setDraft((current) => ({ ...current, [day]: { ...current[day], [key]: value } }));
+    setDraft((current) => ({ ...current, [day]: { ...(current[day] ?? { available: false, from: '10:00 AM', to: '02:00 PM' }), [key]: value } }));
   };
 
-  const saveAvailability = () => {
-    setAvailabilitySchedule(draft);
-    Alert.alert('Availability saved', 'Students can request inspections during the days and times you selected.');
-    router.back();
+  const saveAvailability = async () => {
+    if (!propertyId) {
+      Alert.alert('Property required', 'Open availability from one of your property listings.');
+      return;
+    }
+    if (user?.role !== 'provider') {
+      router.push({ pathname: '/auth/login', params: { role: 'provider' } });
+      return;
+    }
+    const now = new Date();
+    const windows = days.flatMap((day) => {
+      const entry = draft[day];
+      if (!entry?.available) return [];
+      const target = new Date(now);
+      const dayIndex = days.indexOf(day);
+      const offset = (dayIndex - now.getDay() + 7) % 7;
+      target.setDate(now.getDate() + offset);
+      const parseTime = (value: string) => {
+        const match = value.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+        if (!match) return null;
+        const hour = Number(match[1]) % 12 + (match[3].toUpperCase() === 'PM' ? 12 : 0);
+        return { hour, minute: Number(match[2]) };
+      };
+      const from = parseTime(entry.from);
+      const to = parseTime(entry.to);
+      if (!from || !to) return [];
+      const start = new Date(target);
+      const end = new Date(target);
+      start.setHours(from.hour, from.minute, 0, 0);
+      end.setHours(to.hour, to.minute, 0, 0);
+      if (end <= now) {
+        start.setDate(start.getDate() + 7);
+        end.setDate(end.getDate() + 7);
+      }
+      return end > start ? [{ start: start.toISOString(), end: end.toISOString() }] : [];
+    });
+    if (!windows.length) {
+      Alert.alert('No valid time windows', 'Enable at least one day and enter a valid start and end time.');
+      return;
+    }
+    setIsSaving(true);
+    try {
+      await createInspectionSlots(propertyId, windows, 30);
+      setAvailabilitySchedule(draft);
+      Alert.alert('Availability saved', 'The server has created inspection slots for your selected windows.');
+      router.back();
+    } catch (error) {
+      Alert.alert('Unable to save availability', error instanceof Error ? error.message : 'Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -50,7 +100,7 @@ export default function ProviderAvailabilityScreen() {
         <View style={styles.stepsTitleRow}><Ionicons name="calendar-outline" size={20} color={colors.primary} /><Text style={styles.stepsTitle}>How inspection booking works</Text></View>
         <View style={styles.stepsTrack}>{['Set availability', 'Create slots', 'Student chooses', 'Auto-confirm'].map((step, index) => <View key={step} style={styles.step}><View style={styles.stepNumber}><Text style={styles.stepNumberText}>{index + 1}</Text></View><Text style={styles.stepText}>{step}</Text></View>)}</View>
       </View>
-      <Pressable style={styles.saveButton} onPress={saveAvailability}><Text style={styles.saveButtonText}>Save Availability</Text></Pressable>
+      <Pressable style={styles.saveButton} onPress={() => void saveAvailability()} disabled={isSaving}><Text style={styles.saveButtonText}>{isSaving ? 'Saving...' : 'Save Availability'}</Text></Pressable>
       {propertyId ? <Text style={styles.propertyNote}>Availability for {useAppStore.getState().providerProperties.find((property) => property.id === propertyId)?.title ?? 'your property'}</Text> : null}
     </ScrollView>
   );

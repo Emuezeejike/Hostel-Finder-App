@@ -1,17 +1,70 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAppStore } from '../../src/store/app-store';
+import { fetchAdminQueue } from '../../src/api/client';
 import { colors } from '../../src/theme/colors';
 
 const filters = ['Pending', 'Approved', 'Needs Correction'] as const;
 type ApprovalFilter = 'All' | typeof filters[number];
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function queueItems(values: unknown[], kind: 'students' | 'providers' | 'properties') {
+  return values.flatMap((value) => {
+    if (!isRecord(value)) return [];
+    const subject = isRecord(value.property) ? value.property : isRecord(value.user) ? value.user : value;
+    const id = String(subject._id ?? subject.id ?? '');
+    const name = String(subject.title ?? subject.businessName ?? subject.fullName ?? subject.name ?? 'Submission');
+    if (!id) return [];
+    const rawStatus = String(subject.verificationStatus ?? subject.status ?? 'pending').toLowerCase();
+    const status = rawStatus === 'verified' || rawStatus === 'approved' ? 'Approved' : rawStatus === 'rejected' ? 'Rejected' : 'Pending verification';
+    const location = isRecord(subject.location) ? subject.location : {};
+    const school = isRecord(subject.schoolId) ? subject.schoolId : {};
+    const provider = isRecord(subject.providerId) ? subject.providerId : {};
+    const documents = Array.isArray(subject.documents) ? subject.documents.flatMap((item) => {
+      if (typeof item === 'string') return [item];
+      if (isRecord(item) && typeof item.url === 'string') return [item.url];
+      return [];
+    }) : [];
+    return [{
+      id,
+      name,
+      type: kind === 'providers' ? 'Provider' as const : 'Listing' as const,
+      status,
+      location: String(subject.address ?? location.address ?? ''),
+      school: String(school.name ?? subject.schoolName ?? ''),
+      facilities: Array.isArray(subject.amenities) ? subject.amenities.filter((item): item is string => typeof item === 'string') : [],
+      email: String(subject.email ?? ''),
+      phone: String(subject.phone ?? provider.phone ?? ''),
+      verification: String(subject.verificationStatus ?? subject.status ?? ''),
+      documents,
+    }];
+  });
+}
+
 export default function AdminApprovalsScreen() {
   const [filter, setFilter] = useState<ApprovalFilter>('Pending');
   const [search, setSearch] = useState('');
   const approvals = useAppStore((state) => state.adminApprovals);
+  const setAdminApprovals = useAppStore((state) => state.setAdminApprovals);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+
+  useEffect(() => {
+    let mounted = true;
+    void fetchAdminQueue('providers', 'pending').then((providers) => {
+      if (mounted) setAdminApprovals(queueItems(providers, 'providers'));
+    }).catch((error: unknown) => {
+      if (mounted) setLoadError(error instanceof Error ? error.message : 'Unable to load approval queues.');
+    }).finally(() => {
+      if (mounted) setIsLoading(false);
+    });
+    return () => { mounted = false; };
+  }, [setAdminApprovals]);
   const counts = {
     Pending: approvals.filter((item) => item.status !== 'Approved' && item.status !== 'Needs Correction' && item.status !== 'Rejected').length,
     Approved: approvals.filter((item) => item.status === 'Approved').length,
@@ -26,13 +79,15 @@ export default function AdminApprovalsScreen() {
   return (
     <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
       <Pressable accessibilityLabel="Go back" onPress={() => router.back()} style={styles.backButton}><Ionicons name="arrow-back" size={22} color={colors.text} /><Text style={styles.backText}>Back</Text></Pressable>
-      <Text style={styles.title}>Review Queue</Text>
-      <Text style={styles.subtitle}>Check landlord and property submissions before students can see them.</Text>
-      <View style={styles.searchBox}><Ionicons name="search-outline" size={17} color={colors.muted} /><TextInput value={search} onChangeText={setSearch} placeholder="Search property, landlord or location" placeholderTextColor={colors.muted} style={styles.searchInput} /></View>
+      <Text style={styles.title}>Landlord approvals</Text>
+      <Text style={styles.subtitle}>Review landlord account submissions before approval.</Text>
+      <View style={styles.searchBox}><Ionicons name="search-outline" size={17} color={colors.muted} /><TextInput value={search} onChangeText={setSearch} placeholder="Search landlord or email" placeholderTextColor={colors.muted} style={styles.searchInput} /></View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
         <FilterButton label="All" count={approvals.length} selected={filter === 'All'} onPress={() => setFilter('All')} />
         {filters.map((item) => <FilterButton key={item} label={item} count={counts[item]} selected={filter === item} onPress={() => setFilter(item)} />)}
       </ScrollView>
+      {loadError ? <Text accessibilityRole="alert" style={styles.errorText}>{loadError}</Text> : null}
+      {isLoading ? <Text style={styles.emptyText}>Loading review queues...</Text> : null}
       {filtered.map((item) => (
         <Pressable key={item.id} onPress={() => router.push({ pathname: '/admin/review', params: { id: item.id } })} style={styles.card}>
           <View style={styles.cardCopy}><Text style={styles.name}>{item.name}</Text><Text style={styles.location}>{item.location ?? item.type}</Text><View style={styles.statusPill}><Text style={styles.statusText}>{item.status}</Text></View></View>
@@ -74,4 +129,5 @@ const styles = StyleSheet.create({
   emptyTitle: { color: colors.text, fontSize: 16, fontWeight: '700' },
   emptyText: { color: colors.muted, fontSize: 12 },
   note: { color: '#171426', fontSize: 11, textAlign: 'center', marginTop: 4 },
+  errorText: { color: '#A33B45', fontSize: 12, marginBottom: 10 },
 });

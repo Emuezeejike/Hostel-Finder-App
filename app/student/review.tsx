@@ -1,27 +1,46 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TextInput, Pressable, ScrollView } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useAppStore } from '../../src/store/app-store';
+import { createReview, fetchMyInspections } from '../../src/api/client';
 
 export default function ReviewScreen() {
+  const params = useLocalSearchParams<{ propertyId?: string }>();
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
-  const addReview = useAppStore((state) => state.addReview);
+  const [propertyId, setPropertyId] = useState(params.propertyId ?? '');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const requests = useAppStore((state) => state.inspectionRequests);
+  const setInspectionRequests = useAppStore((state) => state.setInspectionRequests);
 
-  const handleSubmit = () => {
-    addReview({
-      id: `review-${Date.now()}`,
-      propertyId: 'prop-1',
-      rating,
-      comment,
-      createdAt: new Date().toISOString(),
-    });
-    router.back();
+  useEffect(() => {
+    void fetchMyInspections().then(setInspectionRequests).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : 'Unable to load completed inspections.'));
+  }, [setInspectionRequests]);
+
+  const eligible = requests.filter((request) => request.accepted);
+
+  const handleSubmit = async () => {
+    if (!propertyId) {
+      setError('Choose a property from an accepted inspection first.');
+      return;
+    }
+    setIsSubmitting(true);
+    setError('');
+    try {
+      await createReview({ propertyId, rating, comment: comment.trim() });
+      router.back();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Unable to submit this review.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Review</Text>
+      {!params.propertyId && <View style={styles.propertyChoices}><Text style={styles.label}>Accepted inspection</Text>{eligible.map((request) => <Pressable key={request.id} onPress={() => setPropertyId(request.propertyId)} style={[styles.propertyChoice, propertyId === request.propertyId && styles.propertyChoiceActive]}><Text style={styles.propertyChoiceText}>{request.propertyName}</Text></Pressable>)}{eligible.length === 0 ? <Text style={styles.hint}>Reviews are available after a provider marks an inspection complete and you accept the property.</Text> : null}</View>}
       <Text style={styles.label}>Rating</Text>
       <View style={styles.starsRow}>
         {[1, 2, 3, 4, 5].map((value) => (
@@ -42,8 +61,9 @@ export default function ReviewScreen() {
       />
 
       <Pressable style={styles.primaryButton} onPress={handleSubmit}>
-        <Text style={styles.primaryButtonText}>Submit Review</Text>
+        <Text style={styles.primaryButtonText}>{isSubmitting ? 'Submitting...' : 'Submit Review'}</Text>
       </Pressable>
+      {error ? <Text accessibilityRole="alert" style={styles.errorText}>{error}</Text> : null}
     </ScrollView>
   );
 }
@@ -98,6 +118,12 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     alignItems: 'center',
   },
+  propertyChoices: { marginBottom: 18 },
+  propertyChoice: { minHeight: 42, justifyContent: 'center', paddingHorizontal: 12, borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 8, marginTop: 7 },
+  propertyChoiceActive: { borderColor: '#0F172A', backgroundColor: '#E2E8F0' },
+  propertyChoiceText: { color: '#0F172A', fontSize: 13 },
+  hint: { color: '#64748B', fontSize: 12, marginTop: 8 },
+  errorText: { color: '#A33B45', fontSize: 12, marginTop: 10 },
   primaryButtonText: {
     color: '#fff',
     fontSize: 16,
